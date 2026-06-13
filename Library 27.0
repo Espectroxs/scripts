@@ -224,22 +224,7 @@ Tabs.BackgroundColor3 = Linux_Background
 Tabs.BackgroundTransparency = 1
 
 Tabs.Position = UDim2.new(0, 15, 0, 60)
-Tabs.Size = UDim2.new(1, -30, 1, -78)
-
---// Status discreto estilo Linux, sem tapar layout
-local StatusText = Instance.new("TextLabel")
-StatusText.Name = "StatusText"
-StatusText.Parent = Window
-StatusText.BackgroundTransparency = 1
-StatusText.Position = UDim2.new(0, 15, 1, -16)
-StatusText.Size = UDim2.new(1, -30, 0, 12)
-StatusText.Font = Enum.Font.Code
-StatusText.Text = "terminal@client:~$ ready"
-StatusText.TextColor3 = Color3.fromRGB(120, 120, 120)
-StatusText.TextSize = 10
-StatusText.TextXAlignment = Enum.TextXAlignment.Left
-StatusText.TextYAlignment = Enum.TextYAlignment.Center
-StatusText.ZIndex = 2
+Tabs.Size = UDim2.new(1, -30, 1, -60)
 
 Title.Name = "Title"
 Title.Parent = Window
@@ -597,8 +582,8 @@ TabButton.Size = UDim2.new(0, 71, 0, 20)
 
 TabButton.ZIndex = 2
 TabButton.Font = Enum.Font.Code
-TabButton.Text = "Test tab"
-TabButton.TextColor3 = Linux_Text
+TabButton.TextSize = 11
+TabButton.TextColor3 = Color3.fromRGB(220, 220, 220)
 TabButton.TextSize = 12
 TabButton.TextXAlignment = Enum.TextXAlignment.Center
 
@@ -609,7 +594,7 @@ TextButton_Roundify_4px_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_2.BackgroundTransparency = 1
 TextButton_Roundify_4px_2.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_2.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_2.ImageColor3 = Linux_Surface2
+TextButton_Roundify_4px_2.ImageColor3 = Color3.fromRGB(24, 24, 24)
 TextButton_Roundify_4px_2.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_2.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -1378,7 +1363,7 @@ function library:AddWindow(title, options)
 					if dropdown_open then return end
 					for i, v in next, tab_buttons:GetChildren() do
 						if not (v:IsA("UIListLayout")) then
-							v:GetChildren()[1].ImageColor3 = Color3.fromRGB(52, 53, 56)
+							v:GetChildren()[1].ImageColor3 = Color3.fromRGB(24, 24, 24)
 							Resize(v, {Size = UDim2.new(0, v.AbsoluteSize.X, 0, 20)}, options.tween_time)
 						end
 					end
@@ -1387,7 +1372,7 @@ function library:AddWindow(title, options)
 					end
 
 					Resize(new_button, {Size = UDim2.new(0, new_button.AbsoluteSize.X, 0, 25)}, options.tween_time)
-					new_button:GetChildren()[1].ImageColor3 = Color3.fromRGB(73, 75, 79)
+					new_button:GetChildren()[1].ImageColor3 = Color3.fromRGB(35, 45, 38)
 					new_tab.Visible = true
 				end
 
