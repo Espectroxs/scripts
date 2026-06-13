@@ -223,8 +223,9 @@ Tabs.Parent = Window
 Tabs.BackgroundColor3 = Linux_Background
 Tabs.BackgroundTransparency = 1
 
-Tabs.Position = UDim2.new(0, 15, 0, 60)
-Tabs.Size = UDim2.new(1, -30, 1, -60)
+-- Conteúdo principal em cima, deixando espaço para as tabs embaixo
+Tabs.Position = UDim2.new(0, 15, 0, 35)
+Tabs.Size = UDim2.new(1, -30, 1, -75)
 
 
 Title.Name = "Title"
@@ -247,7 +248,9 @@ TabSelection.Name = "TabSelection"
 TabSelection.Parent = Window
 TabSelection.BackgroundColor3 = Linux_Surface
 TabSelection.BackgroundTransparency = 1
-TabSelection.Position = UDim2.new(0, 15, 0, 30)
+
+-- Tabs na parte inferior da janela
+TabSelection.Position = UDim2.new(0, 15, 1, -35)
 TabSelection.Size = UDim2.new(1, -30, 0, 25)
 TabSelection.Visible = false
 
@@ -326,19 +329,19 @@ TabButtons.Parent = TabSelection
 TabButtons.BackgroundColor3 = Color3.new(1, 1, 1)
 TabButtons.BackgroundTransparency = 1
 
--- Ajustado para tabs na lateral direita
-TabButtons.Position = UDim2.new(0, 6, 0, 6)
-TabButtons.Size = UDim2.new(1, -12, 1, -12)
+-- Tabs horizontais na parte inferior
+TabButtons.Position = UDim2.new(0, 0, 0, 0)
+TabButtons.Size = UDim2.new(1, 0, 1, 0)
 
 
 UIListLayout.Parent = TabButtons
 
--- Tabs em coluna, estilo painel lateral Linux
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
+-- Mantém os botões lado a lado, agora na barra inferior
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 4)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+UIListLayout.Padding = UDim.new(0, 3)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
 
 Frame.Parent = TabSelection
@@ -346,9 +349,9 @@ Frame.BackgroundColor3 = Linux_Stroke
 Frame.BorderColor3 = Linux_Stroke
 Frame.BorderSizePixel = 0
 
--- Divisor vertical entre conteúdo e tabs
-Frame.Position = UDim2.new(0, -7, 0, 0)
-Frame.Size = UDim2.new(0, 1, 1, 0)
+-- Linha fina acima da barra inferior das tabs
+Frame.Position = UDim2.new(0, 0, 0, -4)
+Frame.Size = UDim2.new(1, 0, 0, 1)
 Frame.BackgroundTransparency = 0.25
 
 
@@ -560,16 +563,16 @@ TabButton.Parent = Prefabs
 TabButton.BackgroundColor3 = Color3.new(0, 0, 0)
 TabButton.BackgroundTransparency = 1
 TabButton.BorderSizePixel = 0
-TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
+TabButton.Position = UDim2.new(0, 0, 0, 0)
 
--- Melhor para tabs na lateral direita
-TabButton.Size = UDim2.new(1, 0, 0, 24)
+-- Tamanho fixo para barra inferior horizontal
+TabButton.Size = UDim2.new(0, 74, 0, 20)
 
 TabButton.ZIndex = 2
 TabButton.Font = Enum.Font.Code
 TabButton.Text = "Test tab"
 TabButton.TextColor3 = Linux_Text
-TabButton.TextSize = 12
+TabButton.TextSize = 11
 TabButton.TextXAlignment = Enum.TextXAlignment.Center
 
 
