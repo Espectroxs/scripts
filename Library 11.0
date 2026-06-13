@@ -167,7 +167,6 @@ BarLine.BackgroundTransparency = 0.25
 BarLine.Position = UDim2.new(0, 0, 1, 0)
 BarLine.Size = UDim2.new(1, 0, 0, 1)
 
---// Tema Linux / Terminal
 local Linux_Background = Color3.fromRGB(10, 10, 10)
 local Linux_Surface = Color3.fromRGB(15, 15, 15)
 local Linux_Surface2 = Color3.fromRGB(22, 22, 22)
@@ -182,7 +181,6 @@ Toggle.Parent = Bar
 Toggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Toggle.BackgroundTransparency = 1
 
--- Mantido para não bugar minimize/abrir
 Toggle.Position = UDim2.new(0, 5, 0, -2)
 Toggle.Rotation = 90
 Toggle.Size = UDim2.new(0, 20, 0, 20)
@@ -197,7 +195,6 @@ Base.Parent = Bar
 Base.BackgroundColor3 = Linux_Background
 Base.BorderSizePixel = 0
 
--- Mantido para não quebrar a barra
 Base.Position = UDim2.new(0, 0, 0.800000012, 0)
 Base.Size = UDim2.new(1, 0, 0, 10)
 
@@ -212,7 +209,6 @@ Top.Parent = Bar
 Top.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Top.BackgroundTransparency = 1
 
--- Mantido para não bugar o topo
 Top.Position = UDim2.new(0, 0, 0, -5)
 Top.Size = UDim2.new(1, 0, 0, 10)
 
@@ -227,7 +223,6 @@ Tabs.Parent = Window
 Tabs.BackgroundColor3 = Linux_Background
 Tabs.BackgroundTransparency = 1
 
--- Mantido para preservar o layout atual das abas
 Tabs.Position = UDim2.new(0, 15, 0, 60)
 Tabs.Size = UDim2.new(1, -30, 1, -60)
 
@@ -239,7 +234,6 @@ Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 30, 0, 2)
 Title.Size = UDim2.new(1, -45, 0, 20)
 
--- Fonte estilo terminal/Linux
 Title.Font = Enum.Font.Code
 Title.Text = "Gamer Time"
 Title.TextColor3 = Linux_Text
@@ -263,7 +257,6 @@ TabSelection.ScaleType = Enum.ScaleType.Slice
 TabSelection.SliceCenter = Rect.new(4, 4, 4, 4)
 
 
---// Borda fina no seletor de tabs, estilo terminal
 for _, v in pairs(TabSelection:GetChildren()) do
 	if v.Name == "LinuxTabStroke" then
 		v:Destroy()
@@ -279,7 +272,6 @@ LinuxTabStroke.Transparency = 0.45
 LinuxTabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
 
---// Linha inferior discreta abaixo da barra
 for _, v in pairs(Bar:GetChildren()) do
 	if v.Name == "LinuxBarLine" then
 		v:Destroy()
@@ -296,47 +288,87 @@ LinuxBarLine.Position = UDim2.new(0, 0, 1, 0)
 LinuxBarLine.Size = UDim2.new(1, 0, 0, 1)
 LinuxBarLine.ZIndex = 2
 
+--// Continuação - Tema Linux / Terminal
+
+local Linux_Background = Color3.fromRGB(8, 8, 8)
+local Linux_Surface = Color3.fromRGB(14, 14, 14)
+local Linux_Surface2 = Color3.fromRGB(20, 20, 20)
+local Linux_Surface3 = Color3.fromRGB(28, 28, 28)
+local Linux_Stroke = Color3.fromRGB(115, 115, 115)
+local Linux_Text = Color3.fromRGB(225, 225, 225)
+local Linux_Muted = Color3.fromRGB(150, 150, 150)
+local Linux_Accent = Color3.fromRGB(95, 130, 175)
+
+
 TabButtons.Name = "TabButtons"
 TabButtons.Parent = TabSelection
 TabButtons.BackgroundColor3 = Color3.new(1, 1, 1)
 TabButtons.BackgroundTransparency = 1
-TabButtons.Size = UDim2.new(1, 0, 1, 0)
+
+-- Ajustado para tabs na lateral direita
+TabButtons.Position = UDim2.new(0, 6, 0, 6)
+TabButtons.Size = UDim2.new(1, -12, 1, -12)
+
 
 UIListLayout.Parent = TabButtons
-UIListLayout.FillDirection = Enum.FillDirection.Horizontal
+
+-- Antes era Horizontal.
+-- Agora fica Vertical para deixar:
+-- FARM
+-- REBIRTHS
+-- PETS
+-- GIFT
+-- TELEPORT
+UIListLayout.FillDirection = Enum.FillDirection.Vertical
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 2)
+UIListLayout.Padding = UDim.new(0, 4)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+
 
 Frame.Parent = TabSelection
-Frame.BackgroundColor3 = Color3.new(0.12549, 0.227451, 0.372549)
-Frame.BorderColor3 = Color3.new(0.105882, 0.164706, 0.207843)
+Frame.BackgroundColor3 = Linux_Stroke
+Frame.BorderColor3 = Linux_Stroke
 Frame.BorderSizePixel = 0
-Frame.Position = UDim2.new(0, 0, 1, 0)
-Frame.Size = UDim2.new(1, 0, 0, 2)
+
+-- Antes era linha horizontal embaixo das tabs.
+-- Agora vira divisor vertical para combinar com tabs na direita.
+Frame.Position = UDim2.new(0, -7, 0, 0)
+Frame.Size = UDim2.new(0, 1, 1, 0)
+Frame.BackgroundTransparency = 0.25
+
 
 Tab.Name = "Tab"
 Tab.Parent = Prefabs
-Tab.BackgroundColor3 = Color3.new(1, 1, 1)
+Tab.BackgroundColor3 = Linux_Background
 Tab.BackgroundTransparency = 1
 Tab.Size = UDim2.new(1, 0, 1, 0)
 Tab.Visible = false
 
+
 UIListLayout_2.Parent = Tab
 UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout_2.Padding = UDim.new(0, 5)
+UIListLayout_2.Padding = UDim.new(0, 6)
+
 
 TextBox.Parent = Prefabs
 TextBox.BackgroundColor3 = Color3.new(1, 1, 1)
 TextBox.BackgroundTransparency = 1
 TextBox.BorderSizePixel = 0
-TextBox.Size = UDim2.new(1, 0, 0, 20)
+TextBox.Size = UDim2.new(1, 0, 0, 22)
 TextBox.ZIndex = 2
-TextBox.Font = Enum.Font.Bangers
-TextBox.PlaceholderColor3 = Color3.new(0.698039, 0.698039, 0.698039)
+
+-- Fonte estilo terminal/Linux
+TextBox.Font = Enum.Font.Code
+TextBox.PlaceholderColor3 = Linux_Muted
 TextBox.PlaceholderText = "Input Text"
 TextBox.Text = ""
-TextBox.TextColor3 = Color3.new(1, 1, 1)
-TextBox.TextSize = 14
+TextBox.TextColor3 = Linux_Text
+TextBox.TextSize = 13
+TextBox.TextXAlignment = Enum.TextXAlignment.Left
+TextBox.TextYAlignment = Enum.TextYAlignment.Center
+TextBox.ClearTextOnFocus = false
+
 
 TextBox_Roundify_4px.Name = "TextBox_Roundify_4px"
 TextBox_Roundify_4px.Parent = TextBox
@@ -344,20 +376,52 @@ TextBox_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 TextBox_Roundify_4px.BackgroundTransparency = 1
 TextBox_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 TextBox_Roundify_4px.Image = "rbxassetid://2851929490"
-TextBox_Roundify_4px.ImageColor3 = Color3.new(0.203922, 0.207843, 0.219608)
+TextBox_Roundify_4px.ImageColor3 = Linux_Surface2
 TextBox_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextBox_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
+
+-- Borda fina no TextBox
+for _, v in pairs(TextBox_Roundify_4px:GetChildren()) do
+	if v.Name == "LinuxTextBoxStroke" then
+		v:Destroy()
+	end
+end
+
+local LinuxTextBoxStroke = Instance.new("UIStroke")
+LinuxTextBoxStroke.Name = "LinuxTextBoxStroke"
+LinuxTextBoxStroke.Parent = TextBox_Roundify_4px
+LinuxTextBoxStroke.Color = Linux_Stroke
+LinuxTextBoxStroke.Thickness = 1
+LinuxTextBoxStroke.Transparency = 0.65
+LinuxTextBoxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
 
 Slider.Name = "Slider"
 Slider.Parent = Prefabs
 Slider.BackgroundColor3 = Color3.new(1, 1, 1)
 Slider.BackgroundTransparency = 1
 Slider.Position = UDim2.new(0, 0, 0.178571433, 0)
-Slider.Size = UDim2.new(1, 0, 0, 20)
+Slider.Size = UDim2.new(1, 0, 0, 22)
 Slider.Image = "rbxassetid://2851929490"
-Slider.ImageColor3 = Color3.new(0.145098, 0.14902, 0.156863)
+Slider.ImageColor3 = Linux_Surface2
 Slider.ScaleType = Enum.ScaleType.Slice
 Slider.SliceCenter = Rect.new(4, 4, 4, 4)
+
+-- Borda fina no Slider
+for _, v in pairs(Slider:GetChildren()) do
+	if v.Name == "LinuxSliderStroke" then
+		v:Destroy()
+	end
+end
+
+local LinuxSliderStroke = Instance.new("UIStroke")
+LinuxSliderStroke.Name = "LinuxSliderStroke"
+LinuxSliderStroke.Parent = Slider
+LinuxSliderStroke.Color = Linux_Stroke
+LinuxSliderStroke.Thickness = 1
+LinuxSliderStroke.Transparency = 0.65
+LinuxSliderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
 
 Title_2.Name = "Title"
 Title_2.Parent = Slider
@@ -366,10 +430,13 @@ Title_2.BackgroundTransparency = 1
 Title_2.Position = UDim2.new(0.5, 0, 0.5, -10)
 Title_2.Size = UDim2.new(0, 0, 0, 20)
 Title_2.ZIndex = 2
-Title_2.Font = Enum.Font.Bangers
+
+-- Fonte estilo Linux/terminal
+Title_2.Font = Enum.Font.Code
 Title_2.Text = "Slider"
-Title_2.TextColor3 = Color3.new(1, 1, 1)
-Title_2.TextSize = 14
+Title_2.TextColor3 = Linux_Text
+Title_2.TextSize = 13
+Title_2.TextStrokeTransparency = 1
 
 Indicator.Name = "Indicator"
 Indicator.Parent = Slider
