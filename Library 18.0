@@ -245,17 +245,18 @@ Title.TextStrokeTransparency = 1
 
 TabSelection.Name = "TabSelection"
 TabSelection.Parent = Window
-TabSelection.BackgroundColor3 = Linux_Surface
+TabSelection.BackgroundColor3 = Color3.new(0, 0, 0)
 TabSelection.BackgroundTransparency = 1
-TabSelection.Position = UDim2.new(0, 15, 0, 30)
-TabSelection.Size = UDim2.new(1, -30, 0, 25)
-TabSelection.Visible = false
 
+-- Tabs na parte inferior da janela
+TabSelection.Position = UDim2.new(0, 15, 1, -35)
+TabSelection.Size = UDim2.new(1, -30, 0, 25)
+
+TabSelection.Visible = false
 TabSelection.Image = "rbxassetid://84145809579840"
-TabSelection.ImageColor3 = Linux_Surface2
+TabSelection.ImageColor3 = Color3.fromRGB(14, 14, 14)
 TabSelection.ScaleType = Enum.ScaleType.Slice
 TabSelection.SliceCenter = Rect.new(4, 4, 4, 4)
-
 
 for _, v in pairs(TabSelection:GetChildren()) do
 	if v.Name == "LinuxTabStroke" then
@@ -325,21 +326,28 @@ TabButtons.Name = "TabButtons"
 TabButtons.Parent = TabSelection
 TabButtons.BackgroundColor3 = Color3.new(1, 1, 1)
 TabButtons.BackgroundTransparency = 1
-
--- Ajustado para tabs na lateral direita
-TabButtons.Position = UDim2.new(0, 6, 0, 6)
-TabButtons.Size = UDim2.new(1, -12, 1, -12)
-
+TabButtons.Position = UDim2.new(0, 0, 0, 0)
+TabButtons.Size = UDim2.new(1, 0, 1, 0)
 
 UIListLayout.Parent = TabButtons
 
--- Tabs em coluna, estilo painel lateral Linux
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
+-- Horizontal embaixo
+UIListLayout.FillDirection = Enum.FillDirection.Horizontal
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 4)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+UIListLayout.Padding = UDim.new(0, 3)
+UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Left
+UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Center
 
+--// LINHA DIVISÓRIA ACIMA DAS TABS
+Frame.Parent = TabSelection
+Frame.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
+Frame.BorderColor3 = Color3.fromRGB(90, 90, 90)
+Frame.BorderSizePixel = 0
+
+-- Linha fina separando conteúdo e barra inferior
+Frame.Position = UDim2.new(0, 0, 0, -4)
+Frame.Size = UDim2.new(1, 0, 0, 1)
+Frame.BackgroundTransparency = 0.25
 
 Frame.Parent = TabSelection
 Frame.BackgroundColor3 = Linux_Stroke
@@ -352,13 +360,15 @@ Frame.Size = UDim2.new(0, 1, 1, 0)
 Frame.BackgroundTransparency = 0.25
 
 
-Tab.Name = "Tab"
-Tab.Parent = Prefabs
-Tab.BackgroundColor3 = Linux_Background
-Tab.BackgroundTransparency = 1
-Tab.Size = UDim2.new(1, 0, 1, 0)
-Tab.Visible = false
+Tabs.Name = "Tabs"
+Tabs.Parent = Window
+Tabs.BackgroundColor3 = Color3.new(0, 0, 0)
+Tabs.BackgroundTransparency = 1
 
+-- Conteúdo principal fica livre em cima
+-- Deixa espaço embaixo para a barra de tabs
+Tabs.Position = UDim2.new(0, 15, 0, 35)
+Tabs.Size = UDim2.new(1, -30, 1, -75)
 
 UIListLayout_2.Parent = Tab
 UIListLayout_2.SortOrder = Enum.SortOrder.LayoutOrder
@@ -553,37 +563,6 @@ TextButton_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 
 AddStroke(TextButton_Roundify_4px, "LinuxDropdownStroke", Linux_Stroke, 0.65)
-
-
-TabButton.Name = "TabButton"
-TabButton.Parent = Prefabs
-TabButton.BackgroundColor3 = Color3.new(0, 0, 0)
-TabButton.BackgroundTransparency = 1
-TabButton.BorderSizePixel = 0
-TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
-
--- Melhor para tabs na lateral direita
-TabButton.Size = UDim2.new(1, 0, 0, 24)
-
-TabButton.ZIndex = 2
-TabButton.Font = Enum.Font.Code
-TabButton.Text = "Test tab"
-TabButton.TextColor3 = Linux_Text
-TabButton.TextSize = 12
-TabButton.TextXAlignment = Enum.TextXAlignment.Center
-
-
-TextButton_Roundify_4px_2.Name = "TextButton_Roundify_4px"
-TextButton_Roundify_4px_2.Parent = TabButton
-TextButton_Roundify_4px_2.BackgroundColor3 = Color3.new(1, 1, 1)
-TextButton_Roundify_4px_2.BackgroundTransparency = 1
-TextButton_Roundify_4px_2.Size = UDim2.new(1, 0, 1, 0)
-TextButton_Roundify_4px_2.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_2.ImageColor3 = Linux_Surface2
-TextButton_Roundify_4px_2.ScaleType = Enum.ScaleType.Slice
-TextButton_Roundify_4px_2.SliceCenter = Rect.new(4, 4, 4, 4)
-
-AddStroke(TextButton_Roundify_4px_2, "LinuxTabButtonStroke", Linux_Stroke, 0.7)
 
 
 Folder.Name = "Folder"
