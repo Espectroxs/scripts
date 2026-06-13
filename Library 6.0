@@ -88,82 +88,83 @@ imgui.Parent = game:GetService("CoreGui") or gethui()
 
 Prefabs.Name = "Prefabs"
 Prefabs.Parent = imgui
-Prefabs.BackgroundColor3 = Color3.new(1, 1, 1)
+Prefabs.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 Prefabs.Size = UDim2.new(0, 100, 0, 100)
 Prefabs.Visible = false
 
 
 Label.Name = "Label"
 Label.Parent = Prefabs
-Label.BackgroundColor3 = Color3.new(1, 1, 1)
+Label.BackgroundColor3 = Color3.fromRGB(18, 18, 18)
 Label.BackgroundTransparency = 1
 Label.Size = UDim2.new(0, 200, 0, 20)
-Label.Font = Enum.Font.GothamSemibold
+Label.Font = Enum.Font.Code
 Label.Text = "Hello, world 123"
-Label.TextColor3 = Color3.new(1, 1, 1)
-Label.TextSize = 14
+Label.TextColor3 = Color3.fromRGB(220, 220, 220)
+Label.TextSize = 13
 Label.TextXAlignment = Enum.TextXAlignment.Left
+
 
 Window.Name = "Window"
 Window.Parent = Prefabs
 Window.Active = true
-Window.BackgroundColor3 = Color3.fromRGB(26, 26, 26)
-Window.BorderSizePixel = 0
+Window.BackgroundColor3 = Color3.fromRGB(12, 12, 12)
+Window.BackgroundTransparency = 1
 Window.ClipsDescendants = true
-Window.Position = UDim2.fromOffset(20, 20)
+Window.Position = UDim2.new(0, 20, 0, 20)
 Window.Selectable = true
-Window.Size = UDim2.fromOffset(900, 550)
+Window.Size = UDim2.new(0, 360, 0, 245)
+Window.Image = "rbxassetid://2851926732"
+Window.ImageColor3 = Color3.fromRGB(12, 12, 12)
+Window.ScaleType = Enum.ScaleType.Slice
+Window.SliceCenter = Rect.new(12, 12, 12, 12)
 
-local WindowCorner = Instance.new("UICorner")
-WindowCorner.CornerRadius = UDim.new(0, 16)
-WindowCorner.Parent = Window
-
+-- Borda fina estilo terminal/Linux
 local WindowStroke = Instance.new("UIStroke")
-WindowStroke.Color = Color3.fromRGB(60, 60, 60)
-WindowStroke.Thickness = 1
-WindowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+WindowStroke.Name = "TerminalStroke"
 WindowStroke.Parent = Window
+WindowStroke.Color = Color3.fromRGB(150, 150, 150)
+WindowStroke.Thickness = 1
+WindowStroke.Transparency = 0.15
+WindowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
 
-Bar.Name = "Bar"
-Bar.Parent = Window
-Bar.BackgroundColor3 = Color3.fromRGB(34, 34, 34)
-Bar.BorderSizePixel = 0
-Bar.Position = UDim2.new(0, 0, 0, 0)
-Bar.Size = UDim2.new(1, 0, 0, 40)
+-- Leve arredondamento, bem discreto
+local WindowCorner = Instance.new("UICorner")
+WindowCorner.Name = "TerminalCorner"
+WindowCorner.Parent = Window
+WindowCorner.CornerRadius = UDim.new(0, 2)
 
-local BarCorner = Instance.new("UICorner")
-BarCorner.CornerRadius = UDim.new(0, 16)
-BarCorner.Parent = Bar
-
-local TitleBar = Instance.new("TextLabel")
-TitleBar.Name = "HeaderTitle"
-TitleBar.Parent = Bar
-TitleBar.BackgroundTransparency = 1
-TitleBar.Position = UDim2.new(0, 40, 0, 0)
-TitleBar.Size = UDim2.new(1, -80, 1, 0)
-TitleBar.Font = Enum.Font.GothamBold
-TitleBar.Text = "Dashboard"
-TitleBar.TextColor3 = Color3.fromRGB(240,240,240)
-TitleBar.TextSize = 14
-TitleBar.TextXAlignment = Enum.TextXAlignment.Left
 
 Resizer.Name = "Resizer"
 Resizer.Parent = Window
 Resizer.Active = true
+Resizer.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Resizer.BackgroundTransparency = 1
 Resizer.BorderSizePixel = 0
-Resizer.AnchorPoint = Vector2.new(1,1)
-Resizer.Position = UDim2.new(1,-8,1,-8)
-Resizer.Size = UDim2.fromOffset(20,20)
+Resizer.Position = UDim2.new(1, -20, 1, -20)
+Resizer.Size = UDim2.new(0, 20, 0, 20)
 
-local ResizeIcon = Instance.new("TextLabel")
-ResizeIcon.Parent = Resizer
-ResizeIcon.BackgroundTransparency = 1
-ResizeIcon.Size = UDim2.fromScale(1,1)
-ResizeIcon.Font = Enum.Font.GothamBold
-ResizeIcon.Text = "◢"
-ResizeIcon.TextColor3 = Color3.fromRGB(120,120,120)
-ResizeIcon.TextSize = 14
+
+Bar.Name = "Bar"
+Bar.Parent = Window
+Bar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Bar.BorderSizePixel = 0
+Bar.Position = UDim2.new(0, 0, 0, 0)
+Bar.Size = UDim2.new(1, 0, 0, 20)
+
+-- Linha fina embaixo da barra superior
+local BarStroke = Instance.new("UIStroke")
+BarStroke.Name = "BarStroke"
+BarStroke.Parent = Bar
+BarStroke.Color = Color3.fromRGB(135, 135, 135)
+BarStroke.Thickness = 1
+BarStroke.Transparency = 0.2
+BarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+local BarCorner = Instance.new("UICorner")
+BarCorner.Name = "BarCorner"
+BarCorner.Parent = Bar
+BarCorner.CornerRadius = UDim.new(0, 2)
 
 Toggle.Name = "Toggle"
 Toggle.Parent = Bar
@@ -199,23 +200,20 @@ Top.SliceCenter = Rect.new(12, 12, 12, 12)
 
 Tabs.Name = "Tabs"
 Tabs.Parent = Window
-Tabs.BackgroundTransparency = 0
-Tabs.BackgroundColor3 = Color3.fromRGB(32,32,32)
-Tabs.BorderSizePixel = 0
-Tabs.Position = UDim2.new(0,0,0,40)
-Tabs.Size = UDim2.new(0,220,1,-40)
-
-local TabsCorner = Instance.new("UICorner")
-TabsCorner.CornerRadius = UDim.new(0,12)
-TabsCorner.Parent = Tabs
+Tabs.BackgroundColor3 = Color3.new(0, 0, 0)
+Tabs.BackgroundTransparency = 1
+Tabs.Position = UDim2.new(0, 15, 0, 60)
+Tabs.Size = UDim2.new(1, -30, 1, -60)
 
 Title.Name = "Title"
 Title.Parent = Window
+Title.BackgroundColor3 = Color3.new(1, 1, 1)
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0,250,0,55)
-Title.Size = UDim2.new(0,300,0,30)
-Title.Font = Enum.Font.GothamBold
-Title.TextColor3 = Color3.fromRGB(255,255,255)
+Title.Position = UDim2.new(0, 30, 0, 3)
+Title.Size = UDim2.new(0, 200, 0, 20)
+Title.Font = Enum.Font.Bangers
+Title.Text = "Gamer Time"
+Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 20
 Title.TextXAlignment = Enum.TextXAlignment.Left
 
@@ -266,7 +264,7 @@ TextBox.BackgroundTransparency = 1
 TextBox.BorderSizePixel = 0
 TextBox.Size = UDim2.new(1, 0, 0, 20)
 TextBox.ZIndex = 2
-TextBox.Font = Enum.Font.GothamMedium
+TextBox.Font = Enum.Font.Bangers
 TextBox.PlaceholderColor3 = Color3.new(0.698039, 0.698039, 0.698039)
 TextBox.PlaceholderText = "Input Text"
 TextBox.Text = ""
@@ -301,7 +299,7 @@ Title_2.BackgroundTransparency = 1
 Title_2.Position = UDim2.new(0.5, 0, 0.5, -10)
 Title_2.Size = UDim2.new(0, 0, 0, 20)
 Title_2.ZIndex = 2
-Title_2.Font = Enum.Font.GothamMedium
+Title_2.Font = Enum.Font.Bangers
 Title_2.Text = "Slider"
 Title_2.TextColor3 = Color3.new(1, 1, 1)
 Title_2.TextSize = 14
@@ -322,7 +320,7 @@ Value.BackgroundColor3 = Color3.new(1, 1, 1)
 Value.BackgroundTransparency = 1
 Value.Position = UDim2.new(1, -55, 0.5, -10)
 Value.Size = UDim2.new(0, 50, 0, 20)
-Value.Font = Enum.Font.GothamMedium
+Value.Font = Enum.Font.Bangers
 Value.Text = "0%"
 Value.TextColor3 = Color3.new(1, 1, 1)
 Value.TextSize = 14
@@ -332,7 +330,7 @@ TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel.BackgroundTransparency = 1
 TextLabel.Position = UDim2.new(1, -20, -0.75, 0)
 TextLabel.Size = UDim2.new(0, 26, 0, 50)
-TextLabel.Font = Enum.Font.GothamMedium
+TextLabel.Font = Enum.Font.Bangers
 TextLabel.Text = "]"
 TextLabel.TextColor3 = Color3.new(1, 1, 1)
 TextLabel.TextSize = 14
@@ -342,7 +340,7 @@ TextLabel_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel_2.BackgroundTransparency = 1
 TextLabel_2.Position = UDim2.new(1, -65, -0.75, 0)
 TextLabel_2.Size = UDim2.new(0, 26, 0, 50)
-TextLabel_2.Font = Enum.Font.GothamMedium
+TextLabel_2.Font = Enum.Font.Bangers
 TextLabel_2.Text = "["
 TextLabel_2.TextColor3 = Color3.new(1, 1, 1)
 TextLabel_2.TextSize = 14
@@ -426,7 +424,7 @@ TabButton.BorderSizePixel = 0
 TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
 TabButton.Size = UDim2.new(0, 71, 0, 20)
 TabButton.ZIndex = 2
-TabButton.Font = Enum.Font.GothamMedium
+TabButton.Font = Enum.Font.Bangers
 TabButton.Text = "Test tab"
 TabButton.TextColor3 = Color3.new(1, 1, 1)
 TabButton.TextSize = 14
