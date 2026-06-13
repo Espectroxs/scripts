@@ -113,7 +113,7 @@ Window.BackgroundTransparency = 1
 Window.ClipsDescendants = true
 Window.Position = UDim2.new(0, 20, 0, 20)
 Window.Selectable = true
-Window.Size = UDim2.new(0, 360, 0, 245)
+Window.Size = UDim2.new(0, 520, 0, 320)
 Window.Image = "rbxassetid://2851926732"
 Window.ImageColor3 = Color3.fromRGB(12, 12, 12)
 Window.ScaleType = Enum.ScaleType.Slice
@@ -242,6 +242,32 @@ Title.TextXAlignment = Enum.TextXAlignment.Left
 Title.TextYAlignment = Enum.TextYAlignment.Center
 Title.TextStrokeTransparency = 1
 
+local LinuxDot1 = Instance.new("Frame")
+LinuxDot1.Name = "LinuxDot1"
+LinuxDot1.Parent = Window
+LinuxDot1.BackgroundColor3 = Color3.fromRGB(230, 85, 85)
+LinuxDot1.BorderSizePixel = 0
+LinuxDot1.Position = UDim2.new(1, -48, 0, 7)
+LinuxDot1.Size = UDim2.new(0, 6, 0, 6)
+LinuxDot1.ZIndex = 5
+
+local LinuxDot2 = Instance.new("Frame")
+LinuxDot2.Name = "LinuxDot2"
+LinuxDot2.Parent = Window
+LinuxDot2.BackgroundColor3 = Color3.fromRGB(230, 190, 75)
+LinuxDot2.BorderSizePixel = 0
+LinuxDot2.Position = UDim2.new(1, -36, 0, 7)
+LinuxDot2.Size = UDim2.new(0, 6, 0, 6)
+LinuxDot2.ZIndex = 5
+
+local LinuxDot3 = Instance.new("Frame")
+LinuxDot3.Name = "LinuxDot3"
+LinuxDot3.Parent = Window
+LinuxDot3.BackgroundColor3 = Color3.fromRGB(90, 210, 120)
+LinuxDot3.BorderSizePixel = 0
+LinuxDot3.Position = UDim2.new(1, -24, 0, 7)
+LinuxDot3.Size = UDim2.new(0, 6, 0, 6)
+LinuxDot3.ZIndex = 5
 
 TabSelection.Name = "TabSelection"
 TabSelection.Parent = Window
