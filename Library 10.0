@@ -149,20 +149,15 @@ Bar.Name = "Bar"
 Bar.Parent = Window
 Bar.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 Bar.BorderSizePixel = 0
-
--- IMPORTANTE:
--- Mantém a posição e altura original para não bugar minimize/drag
 Bar.Position = UDim2.new(0, 0, 0, 5)
 Bar.Size = UDim2.new(1, 0, 0, 15)
 
--- Remove efeitos que podem ter bugado a barra
 for _, v in pairs(Bar:GetChildren()) do
 	if v.Name == "BarStroke" or v.Name == "BarCorner" or v.Name == "BarLine" then
 		v:Destroy()
 	end
 end
 
--- Linha fina inferior estilo terminal, sem mexer no tamanho da Bar
 local BarLine = Instance.new("Frame")
 BarLine.Name = "BarLine"
 BarLine.Parent = Bar
@@ -172,68 +167,134 @@ BarLine.BackgroundTransparency = 0.25
 BarLine.Position = UDim2.new(0, 0, 1, 0)
 BarLine.Size = UDim2.new(1, 0, 0, 1)
 
+--// Tema Linux / Terminal
+local Linux_Background = Color3.fromRGB(10, 10, 10)
+local Linux_Surface = Color3.fromRGB(15, 15, 15)
+local Linux_Surface2 = Color3.fromRGB(22, 22, 22)
+local Linux_Stroke = Color3.fromRGB(120, 120, 120)
+local Linux_Text = Color3.fromRGB(230, 230, 230)
+local Linux_Muted = Color3.fromRGB(160, 160, 160)
+local Linux_Accent = Color3.fromRGB(95, 130, 175)
+
+
 Toggle.Name = "Toggle"
 Toggle.Parent = Bar
-Toggle.BackgroundColor3 = Color3.new(1, 1, 1)
+Toggle.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Toggle.BackgroundTransparency = 1
+
+-- Mantido para não bugar minimize/abrir
 Toggle.Position = UDim2.new(0, 5, 0, -2)
 Toggle.Rotation = 90
 Toggle.Size = UDim2.new(0, 20, 0, 20)
-Toggle.ZIndex = 2
+
+Toggle.ZIndex = 3
 Toggle.Image = "https://www.roblox.com/Thumbs/Asset.ashx?width=420&height=420&assetId=11236284665"
+Toggle.ImageColor3 = Linux_Text
+
 
 Base.Name = "Base"
 Base.Parent = Bar
-Base.BackgroundColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+Base.BackgroundColor3 = Linux_Background
 Base.BorderSizePixel = 0
+
+-- Mantido para não quebrar a barra
 Base.Position = UDim2.new(0, 0, 0.800000012, 0)
 Base.Size = UDim2.new(1, 0, 0, 10)
+
 Base.Image = "rbxassetid://2851926732"
-Base.ImageColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+Base.ImageColor3 = Linux_Background
 Base.ScaleType = Enum.ScaleType.Slice
 Base.SliceCenter = Rect.new(12, 12, 12, 12)
 
+
 Top.Name = "Top"
 Top.Parent = Bar
-Top.BackgroundColor3 = Color3.new(1, 1, 1)
+Top.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Top.BackgroundTransparency = 1
+
+-- Mantido para não bugar o topo
 Top.Position = UDim2.new(0, 0, 0, -5)
 Top.Size = UDim2.new(1, 0, 0, 10)
+
 Top.Image = "rbxassetid://2851926732"
-Top.ImageColor3 = Color3.new(0, 0, 0)
+Top.ImageColor3 = Linux_Background
 Top.ScaleType = Enum.ScaleType.Slice
 Top.SliceCenter = Rect.new(12, 12, 12, 12)
 
+
 Tabs.Name = "Tabs"
 Tabs.Parent = Window
-Tabs.BackgroundColor3 = Color3.new(0, 0, 0)
+Tabs.BackgroundColor3 = Linux_Background
 Tabs.BackgroundTransparency = 1
+
+-- Mantido para preservar o layout atual das abas
 Tabs.Position = UDim2.new(0, 15, 0, 60)
 Tabs.Size = UDim2.new(1, -30, 1, -60)
 
+
 Title.Name = "Title"
 Title.Parent = Window
-Title.BackgroundColor3 = Color3.new(1, 1, 1)
+Title.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 Title.BackgroundTransparency = 1
-Title.Position = UDim2.new(0, 30, 0, 3)
-Title.Size = UDim2.new(0, 200, 0, 20)
-Title.Font = Enum.Font.Bangers
+Title.Position = UDim2.new(0, 30, 0, 2)
+Title.Size = UDim2.new(1, -45, 0, 20)
+
+-- Fonte estilo terminal/Linux
+Title.Font = Enum.Font.Code
 Title.Text = "Gamer Time"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.TextSize = 20
+Title.TextColor3 = Linux_Text
+Title.TextSize = 14
 Title.TextXAlignment = Enum.TextXAlignment.Left
+Title.TextYAlignment = Enum.TextYAlignment.Center
+Title.TextStrokeTransparency = 1
+
 
 TabSelection.Name = "TabSelection"
 TabSelection.Parent = Window
-TabSelection.BackgroundColor3 = Color3.new(0, 0, 0)
+TabSelection.BackgroundColor3 = Linux_Surface
 TabSelection.BackgroundTransparency = 1
 TabSelection.Position = UDim2.new(0, 15, 0, 30)
 TabSelection.Size = UDim2.new(1, -30, 0, 25)
 TabSelection.Visible = false
+
 TabSelection.Image = "rbxassetid://84145809579840"
-TabSelection.ImageColor3 = Color3.new(0.145098, 0.14902, 0.156863)
+TabSelection.ImageColor3 = Linux_Surface2
 TabSelection.ScaleType = Enum.ScaleType.Slice
 TabSelection.SliceCenter = Rect.new(4, 4, 4, 4)
+
+
+--// Borda fina no seletor de tabs, estilo terminal
+for _, v in pairs(TabSelection:GetChildren()) do
+	if v.Name == "LinuxTabStroke" then
+		v:Destroy()
+	end
+end
+
+local LinuxTabStroke = Instance.new("UIStroke")
+LinuxTabStroke.Name = "LinuxTabStroke"
+LinuxTabStroke.Parent = TabSelection
+LinuxTabStroke.Color = Linux_Stroke
+LinuxTabStroke.Thickness = 1
+LinuxTabStroke.Transparency = 0.45
+LinuxTabStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+
+
+--// Linha inferior discreta abaixo da barra
+for _, v in pairs(Bar:GetChildren()) do
+	if v.Name == "LinuxBarLine" then
+		v:Destroy()
+	end
+end
+
+local LinuxBarLine = Instance.new("Frame")
+LinuxBarLine.Name = "LinuxBarLine"
+LinuxBarLine.Parent = Bar
+LinuxBarLine.BackgroundColor3 = Linux_Stroke
+LinuxBarLine.BackgroundTransparency = 0.35
+LinuxBarLine.BorderSizePixel = 0
+LinuxBarLine.Position = UDim2.new(0, 0, 1, 0)
+LinuxBarLine.Size = UDim2.new(1, 0, 0, 1)
+LinuxBarLine.ZIndex = 2
 
 TabButtons.Name = "TabButtons"
 TabButtons.Parent = TabSelection
