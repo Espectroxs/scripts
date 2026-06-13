@@ -147,24 +147,30 @@ Resizer.Size = UDim2.new(0, 20, 0, 20)
 
 Bar.Name = "Bar"
 Bar.Parent = Window
-Bar.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Bar.BackgroundColor3 = Color3.fromRGB(8, 8, 8)
 Bar.BorderSizePixel = 0
-Bar.Position = UDim2.new(0, 0, 0, 0)
-Bar.Size = UDim2.new(1, 0, 0, 20)
 
--- Linha fina embaixo da barra superior
-local BarStroke = Instance.new("UIStroke")
-BarStroke.Name = "BarStroke"
-BarStroke.Parent = Bar
-BarStroke.Color = Color3.fromRGB(135, 135, 135)
-BarStroke.Thickness = 1
-BarStroke.Transparency = 0.2
-BarStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+-- IMPORTANTE:
+-- Mantém a posição e altura original para não bugar minimize/drag
+Bar.Position = UDim2.new(0, 0, 0, 5)
+Bar.Size = UDim2.new(1, 0, 0, 15)
 
-local BarCorner = Instance.new("UICorner")
-BarCorner.Name = "BarCorner"
-BarCorner.Parent = Bar
-BarCorner.CornerRadius = UDim.new(0, 2)
+-- Remove efeitos que podem ter bugado a barra
+for _, v in pairs(Bar:GetChildren()) do
+	if v.Name == "BarStroke" or v.Name == "BarCorner" or v.Name == "BarLine" then
+		v:Destroy()
+	end
+end
+
+-- Linha fina inferior estilo terminal, sem mexer no tamanho da Bar
+local BarLine = Instance.new("Frame")
+BarLine.Name = "BarLine"
+BarLine.Parent = Bar
+BarLine.BackgroundColor3 = Color3.fromRGB(120, 120, 120)
+BarLine.BorderSizePixel = 0
+BarLine.BackgroundTransparency = 0.25
+BarLine.Position = UDim2.new(0, 0, 1, 0)
+BarLine.Size = UDim2.new(1, 0, 0, 1)
 
 Toggle.Name = "Toggle"
 Toggle.Parent = Bar
