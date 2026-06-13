@@ -243,19 +243,16 @@ Title.TextYAlignment = Enum.TextYAlignment.Center
 Title.TextStrokeTransparency = 1
 
 
---// ÁREA DOS BOTÕES DAS TABS NA DIREITA
 TabSelection.Name = "TabSelection"
 TabSelection.Parent = Window
-TabSelection.BackgroundColor3 = Color3.new(0, 0, 0)
+TabSelection.BackgroundColor3 = Linux_Surface
 TabSelection.BackgroundTransparency = 1
-
--- Agora a barra vai para a lateral direita
-TabSelection.Position = UDim2.new(1, -105, 0, 35)
-TabSelection.Size = UDim2.new(0, 95, 1, -45)
-
+TabSelection.Position = UDim2.new(0, 15, 0, 30)
+TabSelection.Size = UDim2.new(1, -30, 0, 25)
 TabSelection.Visible = false
+
 TabSelection.Image = "rbxassetid://84145809579840"
-TabSelection.ImageColor3 = Color3.fromRGB(14, 14, 14)
+TabSelection.ImageColor3 = Linux_Surface2
 TabSelection.ScaleType = Enum.ScaleType.Slice
 TabSelection.SliceCenter = Rect.new(4, 4, 4, 4)
 
@@ -354,11 +351,13 @@ Frame.Position = UDim2.new(0, -7, 0, 0)
 Frame.Size = UDim2.new(0, 1, 1, 0)
 Frame.BackgroundTransparency = 0.25
 
+
 Tabs.Name = "Tabs"
 Tabs.Parent = Window
 Tabs.BackgroundColor3 = Color3.new(0, 0, 0)
 Tabs.BackgroundTransparency = 1
 
+-- Conteúdo fica à esquerda, deixando espaço para as tabs na direita
 Tabs.Position = UDim2.new(0, 12, 0, 35)
 Tabs.Size = UDim2.new(1, -125, 1, -45)
 
@@ -553,31 +552,22 @@ TextButton_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 AddStroke(TextButton_Roundify_4px, "LinuxDropdownStroke", Linux_Stroke, 0.65)
 
 
---// BOTÕES DAS TABS
-TabButtons.Name = "TabButtons"
-TabButtons.Parent = TabSelection
-TabButtons.BackgroundColor3 = Color3.new(1, 1, 1)
-TabButtons.BackgroundTransparency = 1
-TabButtons.Position = UDim2.new(0, 4, 0, 4)
-TabButtons.Size = UDim2.new(1, -8, 1, -8)
+TabButton.Name = "TabButton"
+TabButton.Parent = Prefabs
+TabButton.BackgroundColor3 = Color3.new(0, 0, 0)
+TabButton.BackgroundTransparency = 1
+TabButton.BorderSizePixel = 0
+TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
 
-UIListLayout.Parent = TabButtons
-UIListLayout.FillDirection = Enum.FillDirection.Vertical
-UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout.Padding = UDim.new(0, 4)
-UIListLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
-UIListLayout.VerticalAlignment = Enum.VerticalAlignment.Top
+-- Melhor para tabs na lateral direita
+TabButton.Size = UDim2.new(1, 0, 0, 24)
 
---// LINHA DIVISÓRIA ENTRE FUNÇÕES E TABS
-Frame.Parent = TabSelection
-Frame.BackgroundColor3 = Color3.fromRGB(90, 90, 90)
-Frame.BorderColor3 = Color3.fromRGB(90, 90, 90)
-Frame.BorderSizePixel = 0
-
--- Linha vertical no lado esquerdo da barra de tabs
-Frame.Position = UDim2.new(0, -6, 0, 0)
-Frame.Size = UDim2.new(0, 1, 1, 0)
-Frame.BackgroundTransparency = 0.25
+TabButton.ZIndex = 2
+TabButton.Font = Enum.Font.Code
+TabButton.Text = "Test tab"
+TabButton.TextColor3 = Linux_Text
+TabButton.TextSize = 12
+TabButton.TextXAlignment = Enum.TextXAlignment.Center
 
 
 TextButton_Roundify_4px_2.Name = "TextButton_Roundify_4px"
@@ -591,6 +581,7 @@ TextButton_Roundify_4px_2.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_2.SliceCenter = Rect.new(4, 4, 4, 4)
 
 AddStroke(TextButton_Roundify_4px_2, "LinuxTabButtonStroke", Linux_Stroke, 0.7)
+
 
 Folder.Name = "Folder"
 Folder.Parent = Prefabs
