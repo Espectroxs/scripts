@@ -532,16 +532,27 @@ Dropdown.TextSize = 13
 Dropdown.TextXAlignment = Enum.TextXAlignment.Left
 
 
-Indicator_2.Name = "Indicator"
-Indicator_2.Parent = Dropdown
-Indicator_2.BackgroundColor3 = Color3.new(1, 1, 1)
-Indicator_2.BackgroundTransparency = 1
-Indicator_2.Position = UDim2.new(0.899999976, -10, 0.100000001, 0)
-Indicator_2.Rotation = -90
-Indicator_2.Size = UDim2.new(0, 15, 0, 15)
-Indicator_2.ZIndex = 2
-Indicator_2.Image = "https://www.roblox.com/Thumbs/Asset.ashx?width=420&height=420&assetId=11236284665"
+Indicator_2.Image = ""
 Indicator_2.ImageColor3 = Linux_Muted
+
+for _, v in pairs(Indicator_2:GetChildren()) do
+	if v.Name == "LinuxDropdownArrow" then
+		v:Destroy()
+	end
+end
+
+local LinuxDropdownArrow = Instance.new("TextLabel")
+LinuxDropdownArrow.Name = "LinuxDropdownArrow"
+LinuxDropdownArrow.Parent = Indicator_2
+LinuxDropdownArrow.BackgroundTransparency = 1
+LinuxDropdownArrow.Size = UDim2.new(1, 0, 1, 0)
+LinuxDropdownArrow.Font = Enum.Font.Code
+LinuxDropdownArrow.Text = ">"
+LinuxDropdownArrow.TextColor3 = Color3.fromRGB(160, 160, 160)
+LinuxDropdownArrow.TextSize = 14
+LinuxDropdownArrow.TextXAlignment = Enum.TextXAlignment.Center
+LinuxDropdownArrow.TextYAlignment = Enum.TextYAlignment.Center
+LinuxDropdownArrow.ZIndex = Indicator_2.ZIndex + 1
 
 
 Box.Name = "Box"
@@ -656,14 +667,27 @@ TextButton_Roundify_4px_3.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_3.SliceCenter = Rect.new(4, 4, 4, 4)
 
 
-Toggle_2.Name = "Toggle"
-Toggle_2.Parent = Button
-Toggle_2.BackgroundColor3 = Color3.new(1, 1, 1)
-Toggle_2.BackgroundTransparency = 1
-Toggle_2.Position = UDim2.new(0, 5, 0, 1)
-Toggle_2.Size = UDim2.new(0, 18, 0, 18)
-Toggle_2.Image = "https://www.roblox.com/Thumbs/Asset.ashx?width=420&height=420&assetId=11236284665"
+Toggle_2.Image = ""
 Toggle_2.ImageColor3 = Linux_Muted
+
+for _, v in pairs(Toggle_2:GetChildren()) do
+	if v.Name == "LinuxFolderArrow" then
+		v:Destroy()
+	end
+end
+
+local LinuxFolderArrow = Instance.new("TextLabel")
+LinuxFolderArrow.Name = "LinuxFolderArrow"
+LinuxFolderArrow.Parent = Toggle_2
+LinuxFolderArrow.BackgroundTransparency = 1
+LinuxFolderArrow.Size = UDim2.new(1, 0, 1, 0)
+LinuxFolderArrow.Font = Enum.Font.Code
+LinuxFolderArrow.Text = ">"
+LinuxFolderArrow.TextColor3 = Color3.fromRGB(160, 160, 160)
+LinuxFolderArrow.TextSize = 14
+LinuxFolderArrow.TextXAlignment = Enum.TextXAlignment.Center
+LinuxFolderArrow.TextYAlignment = Enum.TextYAlignment.Center
+LinuxFolderArrow.ZIndex = Toggle_2.ZIndex + 1
 
 
 Objects_2.Name = "Objects"
