@@ -288,9 +288,9 @@ LinuxBarLine.Position = UDim2.new(0, 0, 1, 0)
 LinuxBarLine.Size = UDim2.new(1, 0, 0, 1)
 LinuxBarLine.ZIndex = 2
 
---// Continuação - Tema Linux / Terminal
-
+--// Continuação do tema Linux / Terminal
 local Linux_Background = Color3.fromRGB(8, 8, 8)
+local Linux_Window = Color3.fromRGB(11, 11, 11)
 local Linux_Surface = Color3.fromRGB(14, 14, 14)
 local Linux_Surface2 = Color3.fromRGB(20, 20, 20)
 local Linux_Surface3 = Color3.fromRGB(28, 28, 28)
@@ -298,6 +298,27 @@ local Linux_Stroke = Color3.fromRGB(115, 115, 115)
 local Linux_Text = Color3.fromRGB(225, 225, 225)
 local Linux_Muted = Color3.fromRGB(150, 150, 150)
 local Linux_Accent = Color3.fromRGB(95, 130, 175)
+local Linux_Green = Color3.fromRGB(90, 210, 120)
+local Linux_Blue = Color3.fromRGB(90, 170, 255)
+local Linux_Red = Color3.fromRGB(235, 95, 110)
+local Linux_Yellow = Color3.fromRGB(235, 190, 85)
+
+local function AddStroke(obj, name, color, transparency)
+	for _, v in pairs(obj:GetChildren()) do
+		if v.Name == name then
+			v:Destroy()
+		end
+	end
+
+	local stroke = Instance.new("UIStroke")
+	stroke.Name = name
+	stroke.Parent = obj
+	stroke.Color = color or Linux_Stroke
+	stroke.Thickness = 1
+	stroke.Transparency = transparency or 0.55
+	stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+	return stroke
+end
 
 
 TabButtons.Name = "TabButtons"
@@ -312,13 +333,7 @@ TabButtons.Size = UDim2.new(1, -12, 1, -12)
 
 UIListLayout.Parent = TabButtons
 
--- Antes era Horizontal.
--- Agora fica Vertical para deixar:
--- FARM
--- REBIRTHS
--- PETS
--- GIFT
--- TELEPORT
+-- Tabs em coluna, estilo painel lateral Linux
 UIListLayout.FillDirection = Enum.FillDirection.Vertical
 UIListLayout.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout.Padding = UDim.new(0, 4)
@@ -331,8 +346,7 @@ Frame.BackgroundColor3 = Linux_Stroke
 Frame.BorderColor3 = Linux_Stroke
 Frame.BorderSizePixel = 0
 
--- Antes era linha horizontal embaixo das tabs.
--- Agora vira divisor vertical para combinar com tabs na direita.
+-- Divisor vertical entre conteúdo e tabs
 Frame.Position = UDim2.new(0, -7, 0, 0)
 Frame.Size = UDim2.new(0, 1, 1, 0)
 Frame.BackgroundTransparency = 0.25
@@ -357,8 +371,6 @@ TextBox.BackgroundTransparency = 1
 TextBox.BorderSizePixel = 0
 TextBox.Size = UDim2.new(1, 0, 0, 22)
 TextBox.ZIndex = 2
-
--- Fonte estilo terminal/Linux
 TextBox.Font = Enum.Font.Code
 TextBox.PlaceholderColor3 = Linux_Muted
 TextBox.PlaceholderText = "Input Text"
@@ -380,20 +392,7 @@ TextBox_Roundify_4px.ImageColor3 = Linux_Surface2
 TextBox_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextBox_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
 
--- Borda fina no TextBox
-for _, v in pairs(TextBox_Roundify_4px:GetChildren()) do
-	if v.Name == "LinuxTextBoxStroke" then
-		v:Destroy()
-	end
-end
-
-local LinuxTextBoxStroke = Instance.new("UIStroke")
-LinuxTextBoxStroke.Name = "LinuxTextBoxStroke"
-LinuxTextBoxStroke.Parent = TextBox_Roundify_4px
-LinuxTextBoxStroke.Color = Linux_Stroke
-LinuxTextBoxStroke.Thickness = 1
-LinuxTextBoxStroke.Transparency = 0.65
-LinuxTextBoxStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+AddStroke(TextBox_Roundify_4px, "LinuxTextBoxStroke", Linux_Stroke, 0.65)
 
 
 Slider.Name = "Slider"
@@ -407,46 +406,34 @@ Slider.ImageColor3 = Linux_Surface2
 Slider.ScaleType = Enum.ScaleType.Slice
 Slider.SliceCenter = Rect.new(4, 4, 4, 4)
 
--- Borda fina no Slider
-for _, v in pairs(Slider:GetChildren()) do
-	if v.Name == "LinuxSliderStroke" then
-		v:Destroy()
-	end
-end
-
-local LinuxSliderStroke = Instance.new("UIStroke")
-LinuxSliderStroke.Name = "LinuxSliderStroke"
-LinuxSliderStroke.Parent = Slider
-LinuxSliderStroke.Color = Linux_Stroke
-LinuxSliderStroke.Thickness = 1
-LinuxSliderStroke.Transparency = 0.65
-LinuxSliderStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+AddStroke(Slider, "LinuxSliderStroke", Linux_Stroke, 0.65)
 
 
 Title_2.Name = "Title"
 Title_2.Parent = Slider
 Title_2.BackgroundColor3 = Color3.new(1, 1, 1)
 Title_2.BackgroundTransparency = 1
-Title_2.Position = UDim2.new(0.5, 0, 0.5, -10)
-Title_2.Size = UDim2.new(0, 0, 0, 20)
+Title_2.Position = UDim2.new(0, 8, 0.5, -10)
+Title_2.Size = UDim2.new(1, -70, 0, 20)
 Title_2.ZIndex = 2
-
--- Fonte estilo Linux/terminal
 Title_2.Font = Enum.Font.Code
 Title_2.Text = "Slider"
 Title_2.TextColor3 = Linux_Text
 Title_2.TextSize = 13
+Title_2.TextXAlignment = Enum.TextXAlignment.Left
 Title_2.TextStrokeTransparency = 1
+
 
 Indicator.Name = "Indicator"
 Indicator.Parent = Slider
 Indicator.BackgroundColor3 = Color3.new(1, 1, 1)
 Indicator.BackgroundTransparency = 1
-Indicator.Size = UDim2.new(0, 0, 0, 20)
+Indicator.Size = UDim2.new(0, 0, 0, 22)
 Indicator.Image = "rbxassetid://2851929490"
-Indicator.ImageColor3 = Color3.new(0.254902, 0.262745, 0.278431)
+Indicator.ImageColor3 = Linux_Surface3
 Indicator.ScaleType = Enum.ScaleType.Slice
 Indicator.SliceCenter = Rect.new(4, 4, 4, 4)
+
 
 Value.Name = "Value"
 Value.Parent = Slider
@@ -454,42 +441,48 @@ Value.BackgroundColor3 = Color3.new(1, 1, 1)
 Value.BackgroundTransparency = 1
 Value.Position = UDim2.new(1, -55, 0.5, -10)
 Value.Size = UDim2.new(0, 50, 0, 20)
-Value.Font = Enum.Font.Bangers
+Value.Font = Enum.Font.Code
 Value.Text = "0%"
-Value.TextColor3 = Color3.new(1, 1, 1)
-Value.TextSize = 14
+Value.TextColor3 = Linux_Muted
+Value.TextSize = 13
+
 
 TextLabel.Parent = Slider
 TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel.BackgroundTransparency = 1
 TextLabel.Position = UDim2.new(1, -20, -0.75, 0)
 TextLabel.Size = UDim2.new(0, 26, 0, 50)
-TextLabel.Font = Enum.Font.Bangers
+TextLabel.Font = Enum.Font.Code
 TextLabel.Text = "]"
-TextLabel.TextColor3 = Color3.new(1, 1, 1)
-TextLabel.TextSize = 14
+TextLabel.TextColor3 = Linux_Stroke
+TextLabel.TextSize = 13
+
 
 TextLabel_2.Parent = Slider
 TextLabel_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel_2.BackgroundTransparency = 1
 TextLabel_2.Position = UDim2.new(1, -65, -0.75, 0)
 TextLabel_2.Size = UDim2.new(0, 26, 0, 50)
-TextLabel_2.Font = Enum.Font.Bangers
+TextLabel_2.Font = Enum.Font.Code
 TextLabel_2.Text = "["
-TextLabel_2.TextColor3 = Color3.new(1, 1, 1)
-TextLabel_2.TextSize = 14
+TextLabel_2.TextColor3 = Linux_Stroke
+TextLabel_2.TextSize = 13
+
 
 Circle.Name = "Circle"
 Circle.Parent = Prefabs
 Circle.BackgroundColor3 = Color3.new(1, 1, 1)
 Circle.BackgroundTransparency = 1
 Circle.Image = "rbxassetid://266543268"
-Circle.ImageTransparency = 0.5
+Circle.ImageColor3 = Linux_Accent
+Circle.ImageTransparency = 0.6
+
 
 UIListLayout_3.Parent = Prefabs
 UIListLayout_3.FillDirection = Enum.FillDirection.Horizontal
 UIListLayout_3.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout_3.Padding = UDim.new(0, 20)
+
 
 Dropdown.Name = "Dropdown"
 Dropdown.Parent = Prefabs
@@ -497,13 +490,14 @@ Dropdown.BackgroundColor3 = Color3.new(1, 1, 1)
 Dropdown.BackgroundTransparency = 1
 Dropdown.BorderSizePixel = 0
 Dropdown.Position = UDim2.new(-0.055555556, 0, 0.0833333284, 0)
-Dropdown.Size = UDim2.new(0, 200, 0, 20)
+Dropdown.Size = UDim2.new(0, 200, 0, 22)
 Dropdown.ZIndex = 2
-Dropdown.Font = Enum.Font.Merriweather
+Dropdown.Font = Enum.Font.Code
 Dropdown.Text = "      Dropdown"
-Dropdown.TextColor3 = Color3.new(0.784314, 0.784314, 0.784314)
-Dropdown.TextSize = 14
+Dropdown.TextColor3 = Linux_Text
+Dropdown.TextSize = 13
 Dropdown.TextXAlignment = Enum.TextXAlignment.Left
+
 
 Indicator_2.Name = "Indicator"
 Indicator_2.Parent = Dropdown
@@ -514,6 +508,8 @@ Indicator_2.Rotation = -90
 Indicator_2.Size = UDim2.new(0, 15, 0, 15)
 Indicator_2.ZIndex = 2
 Indicator_2.Image = "https://www.roblox.com/Thumbs/Asset.ashx?width=420&height=420&assetId=11236284665"
+Indicator_2.ImageColor3 = Linux_Muted
+
 
 Box.Name = "Box"
 Box.Parent = Dropdown
@@ -523,9 +519,12 @@ Box.Position = UDim2.new(0, 0, 0, 25)
 Box.Size = UDim2.new(1, 0, 0, 150)
 Box.ZIndex = 3
 Box.Image = "rbxassetid://2851929490"
-Box.ImageColor3 = Color3.new(0, 0, 0)
+Box.ImageColor3 = Linux_Background
 Box.ScaleType = Enum.ScaleType.Slice
 Box.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(Box, "LinuxDropdownBoxStroke", Linux_Stroke, 0.55)
+
 
 Objects.Name = "Objects"
 Objects.Parent = Box
@@ -535,10 +534,13 @@ Objects.BorderSizePixel = 0
 Objects.Size = UDim2.new(1, 0, 1, 0)
 Objects.ZIndex = 3
 Objects.CanvasSize = UDim2.new(0, 0, 0, 0)
-Objects.ScrollBarThickness = 8
+Objects.ScrollBarThickness = 4
+Objects.ScrollBarImageColor3 = Linux_Stroke
+
 
 UIListLayout_4.Parent = Objects
 UIListLayout_4.SortOrder = Enum.SortOrder.LayoutOrder
+
 
 TextButton_Roundify_4px.Name = "TextButton_Roundify_4px"
 TextButton_Roundify_4px.Parent = Dropdown
@@ -546,9 +548,12 @@ TextButton_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px.BackgroundTransparency = 1
 TextButton_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px.ImageColor3 = Color3.new(0.203922, 0.207843, 0.219608)
+TextButton_Roundify_4px.ImageColor3 = Linux_Surface2
 TextButton_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(TextButton_Roundify_4px, "LinuxDropdownStroke", Linux_Stroke, 0.65)
+
 
 TabButton.Name = "TabButton"
 TabButton.Parent = Prefabs
@@ -556,12 +561,17 @@ TabButton.BackgroundColor3 = Color3.new(0, 0, 0)
 TabButton.BackgroundTransparency = 1
 TabButton.BorderSizePixel = 0
 TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
-TabButton.Size = UDim2.new(0, 71, 0, 20)
+
+-- Melhor para tabs na lateral direita
+TabButton.Size = UDim2.new(1, 0, 0, 24)
+
 TabButton.ZIndex = 2
-TabButton.Font = Enum.Font.Bangers
+TabButton.Font = Enum.Font.Code
 TabButton.Text = "Test tab"
-TabButton.TextColor3 = Color3.new(1, 1, 1)
-TabButton.TextSize = 14
+TabButton.TextColor3 = Linux_Text
+TabButton.TextSize = 12
+TabButton.TextXAlignment = Enum.TextXAlignment.Center
+
 
 TextButton_Roundify_4px_2.Name = "TextButton_Roundify_4px"
 TextButton_Roundify_4px_2.Parent = TabButton
@@ -569,33 +579,40 @@ TextButton_Roundify_4px_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_2.BackgroundTransparency = 1
 TextButton_Roundify_4px_2.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_2.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_2.ImageColor3 = Color3.new(0.203922, 0.207843, 0.219608)
+TextButton_Roundify_4px_2.ImageColor3 = Linux_Surface2
 TextButton_Roundify_4px_2.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_2.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(TextButton_Roundify_4px_2, "LinuxTabButtonStroke", Linux_Stroke, 0.7)
+
 
 Folder.Name = "Folder"
 Folder.Parent = Prefabs
 Folder.BackgroundColor3 = Color3.new(1, 1, 1)
 Folder.BackgroundTransparency = 1
 Folder.Position = UDim2.new(0, 0, 0, 50)
-Folder.Size = UDim2.new(1, 0, 0, 20)
+Folder.Size = UDim2.new(1, 0, 0, 22)
 Folder.Image = "rbxassetid://2851929490"
-Folder.ImageColor3 = Color3.new(0.0823529, 0.0862745, 0.0901961)
+Folder.ImageColor3 = Linux_Surface
 Folder.ScaleType = Enum.ScaleType.Slice
 Folder.SliceCenter = Rect.new(4, 4, 4, 4)
 
+AddStroke(Folder, "LinuxFolderStroke", Linux_Stroke, 0.75)
+
+
 Button.Name = "Button"
 Button.Parent = Folder
-Button.BackgroundColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+Button.BackgroundColor3 = Linux_Surface2
 Button.BackgroundTransparency = 1
 Button.BorderSizePixel = 0
-Button.Size = UDim2.new(1, 0, 0, 20)
+Button.Size = UDim2.new(1, 0, 0, 22)
 Button.ZIndex = 2
-Button.Font = Enum.Font.GothamSemibold
+Button.Font = Enum.Font.Code
 Button.Text = "      Folder"
-Button.TextColor3 = Color3.new(1, 1, 1)
-Button.TextSize = 14
+Button.TextColor3 = Linux_Text
+Button.TextSize = 13
 Button.TextXAlignment = Enum.TextXAlignment.Left
+
 
 TextButton_Roundify_4px_3.Name = "TextButton_Roundify_4px"
 TextButton_Roundify_4px_3.Parent = Button
@@ -603,40 +620,47 @@ TextButton_Roundify_4px_3.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_3.BackgroundTransparency = 1
 TextButton_Roundify_4px_3.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_3.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_3.ImageColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+TextButton_Roundify_4px_3.ImageColor3 = Linux_Surface2
 TextButton_Roundify_4px_3.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_3.SliceCenter = Rect.new(4, 4, 4, 4)
+
 
 Toggle_2.Name = "Toggle"
 Toggle_2.Parent = Button
 Toggle_2.BackgroundColor3 = Color3.new(1, 1, 1)
 Toggle_2.BackgroundTransparency = 1
-Toggle_2.Position = UDim2.new(0, 5, 0, 0)
-Toggle_2.Size = UDim2.new(0, 20, 0, 20)
+Toggle_2.Position = UDim2.new(0, 5, 0, 1)
+Toggle_2.Size = UDim2.new(0, 18, 0, 18)
 Toggle_2.Image = "https://www.roblox.com/Thumbs/Asset.ashx?width=420&height=420&assetId=11236284665"
+Toggle_2.ImageColor3 = Linux_Muted
+
 
 Objects_2.Name = "Objects"
 Objects_2.Parent = Folder
 Objects_2.BackgroundColor3 = Color3.new(1, 1, 1)
 Objects_2.BackgroundTransparency = 1
-Objects_2.Position = UDim2.new(0, 10, 0, 25)
-Objects_2.Size = UDim2.new(1, -10, 1, -25)
+Objects_2.Position = UDim2.new(0, 10, 0, 27)
+Objects_2.Size = UDim2.new(1, -10, 1, -27)
 Objects_2.Visible = false
+
 
 UIListLayout_5.Parent = Objects_2
 UIListLayout_5.SortOrder = Enum.SortOrder.LayoutOrder
-UIListLayout_5.Padding = UDim.new(0, 5)
+UIListLayout_5.Padding = UDim.new(0, 6)
+
 
 HorizontalAlignment.Name = "HorizontalAlignment"
 HorizontalAlignment.Parent = Prefabs
 HorizontalAlignment.BackgroundColor3 = Color3.new(1, 1, 1)
 HorizontalAlignment.BackgroundTransparency = 1
-HorizontalAlignment.Size = UDim2.new(1, 0, 0, 20)
+HorizontalAlignment.Size = UDim2.new(1, 0, 0, 22)
+
 
 UIListLayout_6.Parent = HorizontalAlignment
 UIListLayout_6.FillDirection = Enum.FillDirection.Horizontal
 UIListLayout_6.SortOrder = Enum.SortOrder.LayoutOrder
 UIListLayout_6.Padding = UDim.new(0, 5)
+
 
 Console.Name = "Console"
 Console.Parent = Prefabs
@@ -644,9 +668,12 @@ Console.BackgroundColor3 = Color3.new(1, 1, 1)
 Console.BackgroundTransparency = 1
 Console.Size = UDim2.new(1, 0, 0, 200)
 Console.Image = "rbxassetid://2851928141"
-Console.ImageColor3 = Color3.new(0.129412, 0.133333, 0.141176)
+Console.ImageColor3 = Linux_Background
 Console.ScaleType = Enum.ScaleType.Slice
 Console.SliceCenter = Rect.new(8, 8, 8, 8)
+
+AddStroke(Console, "LinuxConsoleStroke", Linux_Stroke, 0.55)
+
 
 ScrollingFrame.Parent = Console
 ScrollingFrame.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -655,6 +682,8 @@ ScrollingFrame.BorderSizePixel = 0
 ScrollingFrame.Size = UDim2.new(1, 0, 1, 1)
 ScrollingFrame.CanvasSize = UDim2.new(0, 0, 0, 0)
 ScrollingFrame.ScrollBarThickness = 4
+ScrollingFrame.ScrollBarImageColor3 = Linux_Stroke
+
 
 Source.Name = "Source"
 Source.Parent = ScrollingFrame
@@ -666,14 +695,15 @@ Source.ZIndex = 3
 Source.ClearTextOnFocus = false
 Source.Font = Enum.Font.Code
 Source.MultiLine = true
-Source.PlaceholderColor3 = Color3.new(0.8, 0.8, 0.8)
+Source.PlaceholderColor3 = Linux_Muted
 Source.Text = ""
-Source.TextColor3 = Color3.new(1, 1, 1)
-Source.TextSize = 15
-Source.TextStrokeColor3 = Color3.new(1, 1, 1)
+Source.TextColor3 = Linux_Text
+Source.TextSize = 14
+Source.TextStrokeColor3 = Linux_Text
 Source.TextWrapped = true
 Source.TextXAlignment = Enum.TextXAlignment.Left
 Source.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Comments.Name = "Comments"
 Comments.Parent = Source
@@ -683,10 +713,11 @@ Comments.Size = UDim2.new(1, 0, 1, 0)
 Comments.ZIndex = 5
 Comments.Font = Enum.Font.Code
 Comments.Text = ""
-Comments.TextColor3 = Color3.new(0.231373, 0.784314, 0.231373)
-Comments.TextSize = 15
+Comments.TextColor3 = Linux_Green
+Comments.TextSize = 14
 Comments.TextXAlignment = Enum.TextXAlignment.Left
 Comments.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Globals.Name = "Globals"
 Globals.Parent = Source
@@ -696,10 +727,11 @@ Globals.Size = UDim2.new(1, 0, 1, 0)
 Globals.ZIndex = 5
 Globals.Font = Enum.Font.Code
 Globals.Text = ""
-Globals.TextColor3 = Color3.new(0.517647, 0.839216, 0.968628)
-Globals.TextSize = 15
+Globals.TextColor3 = Color3.fromRGB(110, 190, 255)
+Globals.TextSize = 14
 Globals.TextXAlignment = Enum.TextXAlignment.Left
 Globals.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Keywords.Name = "Keywords"
 Keywords.Parent = Source
@@ -709,10 +741,11 @@ Keywords.Size = UDim2.new(1, 0, 1, 0)
 Keywords.ZIndex = 5
 Keywords.Font = Enum.Font.Code
 Keywords.Text = ""
-Keywords.TextColor3 = Color3.new(0.972549, 0.427451, 0.486275)
-Keywords.TextSize = 15
+Keywords.TextColor3 = Linux_Red
+Keywords.TextSize = 14
 Keywords.TextXAlignment = Enum.TextXAlignment.Left
 Keywords.TextYAlignment = Enum.TextYAlignment.Top
+
 
 RemoteHighlight.Name = "RemoteHighlight"
 RemoteHighlight.Parent = Source
@@ -722,10 +755,11 @@ RemoteHighlight.Size = UDim2.new(1, 0, 1, 0)
 RemoteHighlight.ZIndex = 5
 RemoteHighlight.Font = Enum.Font.Code
 RemoteHighlight.Text = ""
-RemoteHighlight.TextColor3 = Color3.new(0, 0.568627, 1)
-RemoteHighlight.TextSize = 15
+RemoteHighlight.TextColor3 = Linux_Blue
+RemoteHighlight.TextSize = 14
 RemoteHighlight.TextXAlignment = Enum.TextXAlignment.Left
 RemoteHighlight.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Strings.Name = "Strings"
 Strings.Parent = Source
@@ -735,10 +769,11 @@ Strings.Size = UDim2.new(1, 0, 1, 0)
 Strings.ZIndex = 5
 Strings.Font = Enum.Font.Code
 Strings.Text = ""
-Strings.TextColor3 = Color3.new(0.678431, 0.945098, 0.584314)
-Strings.TextSize = 15
+Strings.TextColor3 = Color3.fromRGB(165, 230, 130)
+Strings.TextSize = 14
 Strings.TextXAlignment = Enum.TextXAlignment.Left
 Strings.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Tokens.Name = "Tokens"
 Tokens.Parent = Source
@@ -748,10 +783,11 @@ Tokens.Size = UDim2.new(1, 0, 1, 0)
 Tokens.ZIndex = 5
 Tokens.Font = Enum.Font.Code
 Tokens.Text = ""
-Tokens.TextColor3 = Color3.new(1, 1, 1)
-Tokens.TextSize = 15
+Tokens.TextColor3 = Linux_Text
+Tokens.TextSize = 14
 Tokens.TextXAlignment = Enum.TextXAlignment.Left
 Tokens.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Numbers.Name = "Numbers"
 Numbers.Parent = Source
@@ -761,10 +797,11 @@ Numbers.Size = UDim2.new(1, 0, 1, 0)
 Numbers.ZIndex = 4
 Numbers.Font = Enum.Font.Code
 Numbers.Text = ""
-Numbers.TextColor3 = Color3.new(1, 0.776471, 0)
-Numbers.TextSize = 15
+Numbers.TextColor3 = Linux_Yellow
+Numbers.TextSize = 14
 Numbers.TextXAlignment = Enum.TextXAlignment.Left
 Numbers.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Info.Name = "Info"
 Info.Parent = Source
@@ -774,10 +811,11 @@ Info.Size = UDim2.new(1, 0, 1, 0)
 Info.ZIndex = 5
 Info.Font = Enum.Font.Code
 Info.Text = ""
-Info.TextColor3 = Color3.new(0, 0.635294, 1)
-Info.TextSize = 15
+Info.TextColor3 = Linux_Blue
+Info.TextSize = 14
 Info.TextXAlignment = Enum.TextXAlignment.Left
 Info.TextYAlignment = Enum.TextYAlignment.Top
+
 
 Lines.Name = "Lines"
 Lines.Parent = ScrollingFrame
@@ -788,10 +826,11 @@ Lines.Size = UDim2.new(0, 40, 0, 10000)
 Lines.ZIndex = 4
 Lines.Font = Enum.Font.Code
 Lines.Text = "1\n"
-Lines.TextColor3 = Color3.new(1, 1, 1)
-Lines.TextSize = 15
+Lines.TextColor3 = Linux_Muted
+Lines.TextSize = 14
 Lines.TextWrapped = true
 Lines.TextYAlignment = Enum.TextYAlignment.Top
+
 
 ColorPicker.Name = "ColorPicker"
 ColorPicker.Parent = Prefabs
@@ -799,9 +838,12 @@ ColorPicker.BackgroundColor3 = Color3.new(1, 1, 1)
 ColorPicker.BackgroundTransparency = 1
 ColorPicker.Size = UDim2.new(0, 180, 0, 110)
 ColorPicker.Image = "rbxassetid://2851929490"
-ColorPicker.ImageColor3 = Color3.new(0.203922, 0.207843, 0.219608)
+ColorPicker.ImageColor3 = Linux_Surface2
 ColorPicker.ScaleType = Enum.ScaleType.Slice
 ColorPicker.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(ColorPicker, "LinuxColorPickerStroke", Linux_Stroke, 0.55)
+
 
 Palette.Name = "Palette"
 Palette.Parent = ColorPicker
@@ -812,6 +854,7 @@ Palette.Size = UDim2.new(0, 100, 0, 100)
 Palette.Image = "rbxassetid://698052001"
 Palette.ScaleType = Enum.ScaleType.Slice
 Palette.SliceCenter = Rect.new(4, 4, 4, 4)
+
 
 Indicator_3.Name = "Indicator"
 Indicator_3.Parent = Palette
@@ -824,6 +867,7 @@ Indicator_3.ImageColor3 = Color3.new(0, 0, 0)
 Indicator_3.ScaleType = Enum.ScaleType.Slice
 Indicator_3.SliceCenter = Rect.new(12, 12, 12, 12)
 
+
 Sample.Name = "Sample"
 Sample.Parent = ColorPicker
 Sample.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -834,6 +878,9 @@ Sample.Image = "rbxassetid://2851929490"
 Sample.ScaleType = Enum.ScaleType.Slice
 Sample.SliceCenter = Rect.new(4, 4, 4, 4)
 
+AddStroke(Sample, "LinuxSampleStroke", Linux_Stroke, 0.45)
+
+
 Saturation.Name = "Saturation"
 Saturation.Parent = ColorPicker
 Saturation.BackgroundColor3 = Color3.new(1, 1, 1)
@@ -841,12 +888,14 @@ Saturation.Position = UDim2.new(0.649999976, 0, 0.0500000007, 0)
 Saturation.Size = UDim2.new(0, 15, 0, 100)
 Saturation.Image = "rbxassetid://3641079629"
 
+
 Indicator_4.Name = "Indicator"
 Indicator_4.Parent = Saturation
-Indicator_4.BackgroundColor3 = Color3.new(1, 1, 1)
+Indicator_4.BackgroundColor3 = Linux_Text
 Indicator_4.BorderSizePixel = 0
 Indicator_4.Size = UDim2.new(0, 20, 0, 2)
 Indicator_4.ZIndex = 2
+
 
 Switch.Name = "Switch"
 Switch.Parent = Prefabs
@@ -856,10 +905,11 @@ Switch.BorderSizePixel = 0
 Switch.Position = UDim2.new(0.229411766, 0, 0.20714286, 0)
 Switch.Size = UDim2.new(0, 20, 0, 20)
 Switch.ZIndex = 2
-Switch.Font = Enum.Font.SourceSans
+Switch.Font = Enum.Font.Code
 Switch.Text = ""
-Switch.TextColor3 = Color3.new(1, 1, 1)
+Switch.TextColor3 = Linux_Text
 Switch.TextSize = 18
+
 
 TextButton_Roundify_4px_4.Name = "TextButton_Roundify_4px"
 TextButton_Roundify_4px_4.Parent = Switch
@@ -867,10 +917,13 @@ TextButton_Roundify_4px_4.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_4.BackgroundTransparency = 1
 TextButton_Roundify_4px_4.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_4.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_4.ImageColor3 = Color3.new(0.160784, 0.290196, 0.478431)
-TextButton_Roundify_4px_4.ImageTransparency = 0.5
+TextButton_Roundify_4px_4.ImageColor3 = Linux_Surface3
+TextButton_Roundify_4px_4.ImageTransparency = 0.25
 TextButton_Roundify_4px_4.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_4.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(TextButton_Roundify_4px_4, "LinuxSwitchStroke", Linux_Stroke, 0.55)
+
 
 Title_3.Name = "Title"
 Title_3.Parent = Switch
@@ -878,22 +931,24 @@ Title_3.BackgroundColor3 = Color3.new(1, 1, 1)
 Title_3.BackgroundTransparency = 1
 Title_3.Position = UDim2.new(1.20000005, 0, 0, 0)
 Title_3.Size = UDim2.new(0, 20, 0, 20)
-Title_3.Font = Enum.Font.GothamSemibold
+Title_3.Font = Enum.Font.Code
 Title_3.Text = "Switch"
-Title_3.TextColor3 = Color3.new(0.784314, 0.784314, 0.784314)
-Title_3.TextSize = 14
+Title_3.TextColor3 = Linux_Text
+Title_3.TextSize = 13
 Title_3.TextXAlignment = Enum.TextXAlignment.Left
+
 
 Button_2.Name = "Button"
 Button_2.Parent = Prefabs
-Button_2.BackgroundColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+Button_2.BackgroundColor3 = Linux_Surface2
 Button_2.BackgroundTransparency = 1
 Button_2.BorderSizePixel = 0
-Button_2.Size = UDim2.new(0, 91, 0, 20)
+Button_2.Size = UDim2.new(0, 91, 0, 22)
 Button_2.ZIndex = 2
-Button_2.Font = Enum.Font.GothamSemibold
-Button_2.TextColor3 = Color3.new(1, 1, 1)
-Button_2.TextSize = 14
+Button_2.Font = Enum.Font.Code
+Button_2.TextColor3 = Linux_Text
+Button_2.TextSize = 13
+
 
 TextButton_Roundify_4px_5.Name = "TextButton_Roundify_4px"
 TextButton_Roundify_4px_5.Parent = Button_2
@@ -901,42 +956,50 @@ TextButton_Roundify_4px_5.BackgroundColor3 = Color3.new(1, 1, 1)
 TextButton_Roundify_4px_5.BackgroundTransparency = 1
 TextButton_Roundify_4px_5.Size = UDim2.new(1, 0, 1, 0)
 TextButton_Roundify_4px_5.Image = "rbxassetid://2851929490"
-TextButton_Roundify_4px_5.ImageColor3 = Color3.new(0.160784, 0.290196, 0.478431)
+TextButton_Roundify_4px_5.ImageColor3 = Linux_Surface2
 TextButton_Roundify_4px_5.ScaleType = Enum.ScaleType.Slice
 TextButton_Roundify_4px_5.SliceCenter = Rect.new(4, 4, 4, 4)
 
+AddStroke(TextButton_Roundify_4px_5, "LinuxButtonStroke", Linux_Stroke, 0.65)
+
+
 DropdownButton.Name = "DropdownButton"
 DropdownButton.Parent = Prefabs
-DropdownButton.BackgroundColor3 = Color3.new(0.129412, 0.133333, 0.141176)
+DropdownButton.BackgroundColor3 = Linux_Surface
 DropdownButton.BorderSizePixel = 0
-DropdownButton.Size = UDim2.new(1, 0, 0, 20)
+DropdownButton.Size = UDim2.new(1, 0, 0, 22)
 DropdownButton.ZIndex = 3
-DropdownButton.Font = Enum.Font.GothamBold
+DropdownButton.Font = Enum.Font.Code
 DropdownButton.Text = "      Button"
-DropdownButton.TextColor3 = Color3.new(0.784314, 0.784314, 0.784314)
-DropdownButton.TextSize = 14
+DropdownButton.TextColor3 = Linux_Text
+DropdownButton.TextSize = 13
 DropdownButton.TextXAlignment = Enum.TextXAlignment.Left
+
 
 Keybind.Name = "Keybind"
 Keybind.Parent = Prefabs
 Keybind.BackgroundColor3 = Color3.new(1, 1, 1)
 Keybind.BackgroundTransparency = 1
-Keybind.Size = UDim2.new(0, 200, 0, 20)
+Keybind.Size = UDim2.new(0, 200, 0, 22)
 Keybind.Image = "rbxassetid://2851929490"
-Keybind.ImageColor3 = Color3.new(0.203922, 0.207843, 0.219608)
+Keybind.ImageColor3 = Linux_Surface2
 Keybind.ScaleType = Enum.ScaleType.Slice
 Keybind.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(Keybind, "LinuxKeybindStroke", Linux_Stroke, 0.65)
+
 
 Title_4.Name = "Title"
 Title_4.Parent = Keybind
 Title_4.BackgroundColor3 = Color3.new(1, 1, 1)
 Title_4.BackgroundTransparency = 1
 Title_4.Size = UDim2.new(0, 0, 1, 0)
-Title_4.Font = Enum.Font.GothamBold
+Title_4.Font = Enum.Font.Code
 Title_4.Text = "Keybind"
-Title_4.TextColor3 = Color3.new(0.784314, 0.784314, 0.784314)
-Title_4.TextSize = 14
+Title_4.TextColor3 = Linux_Text
+Title_4.TextSize = 13
 Title_4.TextXAlignment = Enum.TextXAlignment.Left
+
 
 Input.Name = "Input"
 Input.Parent = Keybind
@@ -946,11 +1009,12 @@ Input.BorderSizePixel = 0
 Input.Position = UDim2.new(1, -85, 0, 2)
 Input.Size = UDim2.new(0, 80, 1, -4)
 Input.ZIndex = 2
-Input.Font = Enum.Font.GothamSemibold
+Input.Font = Enum.Font.Code
 Input.Text = "RShift"
-Input.TextColor3 = Color3.new(0.784314, 0.784314, 0.784314)
+Input.TextColor3 = Linux_Text
 Input.TextSize = 12
 Input.TextWrapped = true
+
 
 Input_Roundify_4px.Name = "Input_Roundify_4px"
 Input_Roundify_4px.Parent = Input
@@ -958,9 +1022,12 @@ Input_Roundify_4px.BackgroundColor3 = Color3.new(1, 1, 1)
 Input_Roundify_4px.BackgroundTransparency = 1
 Input_Roundify_4px.Size = UDim2.new(1, 0, 1, 0)
 Input_Roundify_4px.Image = "rbxassetid://2851929490"
-Input_Roundify_4px.ImageColor3 = Color3.new(0.290196, 0.294118, 0.313726)
+Input_Roundify_4px.ImageColor3 = Linux_Surface3
 Input_Roundify_4px.ScaleType = Enum.ScaleType.Slice
 Input_Roundify_4px.SliceCenter = Rect.new(4, 4, 4, 4)
+
+AddStroke(Input_Roundify_4px, "LinuxInputStroke", Linux_Stroke, 0.7)
+
 
 Windows.Name = "Windows"
 Windows.Parent = imgui
