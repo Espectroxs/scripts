@@ -17,7 +17,7 @@ local function isSessionActive()
 	return sharedEnv.WalkyUISession == SCRIPT_SESSION
 end
 
-local KrassUI = {}
+local EspectralUI = {}
 
 local DEFAULT_THEME = {
 	Background = Color3.fromRGB(2, 7, 5),
@@ -124,7 +124,7 @@ local THEME_PRESETS = {
 	},
 }
 
-KrassUI.Themes = THEME_PRESETS
+EspectralUI.Themes = THEME_PRESETS
 
 local function mergeTheme(overrides)
 	local theme = {}
@@ -380,7 +380,7 @@ function Window:_connect(signal, callback)
 	return connection
 end
 
-function KrassUI.new(config)
+function EspectralUI.new(config)
 	config = config or {}
 	local selectedTheme = nil
 	if type(config.Theme) == "string" then
@@ -464,7 +464,6 @@ function KrassUI.new(config)
 	local rootStroke = stroke(theme.Stroke, 2, 0.04)
 	rootStroke.Parent = root
 
-	-- Visual terminal/matrix grid. Apenas decoração; não altera callbacks nem lógica dos controles.
 	local grid = new("Frame", {
 		BackgroundTransparency = 1,
 		Parent = root,
@@ -1656,5 +1655,4 @@ function Section:Dropdown(text, options, default, callback)
 	}, Control)
 end
 
--- Library pura: carregue este arquivo e crie sua UI em outro script.
-return KrassUI
+return EspectralUI
