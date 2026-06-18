@@ -615,19 +615,22 @@ local sidebarList = new("UIListLayout", {
 	list(9).Parent = toastHolder
 
 	local openButton = new("ImageButton", {
-		AnchorPoint = Vector2.new(1, 0.5),
-		AutoButtonColor = false,
-		BackgroundColor3 = theme.Panel,
-		BorderSizePixel = 0,
-		ClipsDescendants = true,
-		Image = "",
-		Parent = gui,
-		Position = UDim2.new(1, -14, 0.5, 0),
-		ScaleType = Enum.ScaleType.Crop,
-		Size = UDim2.fromOffset(58, 58),
-		Visible = false,
-		ZIndex = 61,
-	})
+    AnchorPoint = Vector2.new(0, 0),
+    AutoButtonColor = false,
+    BackgroundColor3 = theme.Panel,
+    BorderSizePixel = 0,
+    ClipsDescendants = true,
+    Image = "",
+    Parent = gui,
+
+    -- posição flutuante
+    Position = UDim2.fromOffset(24, 180),
+
+    ScaleType = Enum.ScaleType.Crop,
+    Size = UDim2.fromOffset(58, 58),
+    Visible = false,
+    ZIndex = 999,
+})
 	corner(999).Parent = openButton
 	local openButtonStroke = stroke(theme.Accent, 2, 0.05)
 	openButtonStroke.Parent = openButton
