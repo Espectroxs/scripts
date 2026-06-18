@@ -622,15 +622,14 @@ local sidebarList = new("UIListLayout", {
     ClipsDescendants = true,
     Image = "",
     Parent = gui,
-
-    -- posição flutuante
-    Position = UDim2.fromOffset(24, 180),
-
+    Position = UDim2.new(1, -90, 0.5, 0),
     ScaleType = Enum.ScaleType.Crop,
     Size = UDim2.fromOffset(58, 58),
     Visible = false,
     ZIndex = 999,
 })
+
+makeDraggable(openButton, openButton, self)
 	corner(999).Parent = openButton
 	local openButtonStroke = stroke(theme.Accent, 2, 0.05)
 	openButtonStroke.Parent = openButton
@@ -852,7 +851,12 @@ function Window:ApplyResponsiveLayout(skipAnimation)
 	end
 
 	self.OpenButton.Size = UDim2.fromOffset(compact and 64 or 58, compact and 64 or 58)
-	self.OpenButton.Position = UDim2.new(1, compact and -10 or -14, 0.5, 0)
+
+-- não força mais a posição, para continuar flutuante/arrastável
+if not self.OpenButton:GetAttribute("FloatingPositionSet") then
+    self.OpenButton.Position = UDim2.fromOffset(24, 180)
+    self.OpenButton:SetAttribute("FloatingPositionSet", true)
+end
 	self.OpenButtonFallback.TextSize = compact and 24 or 22
 	self.ToastHolder.Position = UDim2.new(1, compact and -10 or -18, 0, compact and 10 or 18)
 	self.ToastHolder.Size = UDim2.fromOffset(math.max(240, math.min(320, viewport.X - 20)), 330)
