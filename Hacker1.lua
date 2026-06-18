@@ -570,24 +570,30 @@ function KrassUI.new(config)
 	corner(4).Parent = minimize
 
 	local sidebar = new("Frame", {
-		BackgroundColor3 = theme.Panel,
-		BorderSizePixel = 0,
-		Parent = root,
-		Position = UDim2.fromOffset(0, 57),
-		Size = UDim2.new(0, 166, 1, -57),
-		ZIndex = 3,
-	})
-	local sidebarLine = new("Frame", {
-		BackgroundColor3 = theme.Stroke,
-		BackgroundTransparency = 0.25,
-		BorderSizePixel = 0,
-		Parent = sidebar,
-		Position = UDim2.new(1, -1, 0, 0),
-		Size = UDim2.new(0, 1, 1, 0),
-		ZIndex = 4,
-	})
-	padding(12).Parent = sidebar
-	list(8).Parent = sidebar
+    BackgroundColor3 = theme.Panel,
+    BorderSizePixel = 0,
+    Parent = root,
+    Position = UDim2.fromOffset(0, 57),
+    Size = UDim2.new(0, 166, 1, -57),
+    ZIndex = 3,
+})
+
+local sidebarPadding = new("UIPadding", {
+    PaddingTop = UDim.new(0, 14),
+    PaddingBottom = UDim.new(0, 14),
+    PaddingLeft = UDim.new(0, 10),
+    PaddingRight = UDim.new(0, 10),
+    Parent = sidebar,
+})
+
+local sidebarList = new("UIListLayout", {
+    Padding = UDim.new(0, 8),
+    SortOrder = Enum.SortOrder.LayoutOrder,
+    FillDirection = Enum.FillDirection.Vertical,
+    HorizontalAlignment = Enum.HorizontalAlignment.Center,
+    VerticalAlignment = Enum.VerticalAlignment.Top,
+    Parent = sidebar,
+})
 
 	local pageHolder = new("Frame", {
 		BackgroundTransparency = 1,
