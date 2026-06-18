@@ -1213,6 +1213,80 @@ function Tab:Section(titleText)
 	return section
 end
 
+function Tab:Folder(titleText)
+    local theme = self.Window.Theme
+    local open = true
+
+    local frame = new("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundColor3 = theme.Panel,
+        BorderSizePixel = 0,
+        ClipsDescendants = true,
+        Parent = self.Page,
+        Size = UDim2.new(1, 0, 0, 0),
+        ZIndex = 4,
+    })
+
+    corner(10).Parent = frame
+    stroke(theme.Stroke, 1, 0.25).Parent = frame
+    padding(12).Parent = frame
+    list(8).Parent = frame
+
+    local header = makeButton(frame, "", theme.Panel2, theme.Text)
+    header.Size = UDim2.new(1, 0, 0, 38)
+    header.Text = ""
+    header.LayoutOrder = 1
+    header.ZIndex = 6
+    corner(8).Parent = header
+
+    local arrow = makeLabel(header, ">", 15, theme.Accent, true)
+    arrow.Position = UDim2.fromOffset(10, 0)
+    arrow.Size = UDim2.fromOffset(22, 38)
+    arrow.TextXAlignment = Enum.TextXAlignment.Center
+    arrow.ZIndex = 7
+    arrow.Rotation = 90
+
+    local title = makeLabel(header, titleText, 13, theme.Text, true)
+    title.Font = Enum.Font.Code
+    title.Position = UDim2.fromOffset(38, 0)
+    title.Size = UDim2.new(1, -48, 1, 0)
+    title.ZIndex = 7
+
+    local content = new("Frame", {
+        AutomaticSize = Enum.AutomaticSize.Y,
+        BackgroundTransparency = 1,
+        LayoutOrder = 2,
+        Parent = frame,
+        Size = UDim2.new(1, 0, 0, 0),
+        Visible = true,
+        ZIndex = 5,
+    })
+
+    list(8).Parent = content
+
+    local folder = setmetatable({
+        Content = content,
+        Count = 0,
+        Frame = frame,
+        Window = self.Window,
+    }, Section)
+
+    header.MouseButton1Click:Connect(function()
+        open = not open
+        content.Visible = open
+
+        tween(arrow, {
+            Rotation = open and 90 or 0,
+        }, 0.18)
+
+        tween(header, {
+            BackgroundColor3 = open and theme.Panel3 or theme.Panel2,
+        }, 0.18)
+    end)
+
+    return folder
+end
+
 function Section:_baseRow(height)
 	local theme = self.Window.Theme
 	self.Count = self.Count + 1
