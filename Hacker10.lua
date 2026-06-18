@@ -1215,7 +1215,7 @@ end
 
 function Tab:Folder(titleText)
     local theme = self.Window.Theme
-    local open = true
+    local open = false
 
     local frame = new("Frame", {
         AutomaticSize = Enum.AutomaticSize.Y,
@@ -1244,7 +1244,7 @@ function Tab:Folder(titleText)
     arrow.Size = UDim2.fromOffset(22, 38)
     arrow.TextXAlignment = Enum.TextXAlignment.Center
     arrow.ZIndex = 7
-    arrow.Rotation = 90
+    arrow.Rotation = 0
 
     local title = makeLabel(header, titleText, 13, theme.Text, true)
     title.Font = Enum.Font.Code
@@ -1258,7 +1258,7 @@ function Tab:Folder(titleText)
         LayoutOrder = 2,
         Parent = frame,
         Size = UDim2.new(1, 0, 0, 0),
-        Visible = true,
+        Visible = false,
         ZIndex = 5,
     })
 
