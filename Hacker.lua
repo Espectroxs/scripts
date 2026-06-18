@@ -1,28 +1,3 @@
---[[
-    UI ONLY EXTRACTION - Walky/Krass UI
-    Extraído do arquivo original e limpo para manter somente a interface.
-
-    REMOVIDO:
-    - Auto farm / auto buy / auto plant / auto sell
-    - Steal / teleport / remotes do jogo
-    - Webhook / HTTP request
-    - Anti-AFK / FPS boost / hooks de executor
-    - hookmetamethod, syn.request, request, newcclosure, setthreadidentity
-
-    MANTIDO:
-    - Janela principal
-    - Sistema de abas
-    - Section
-    - Label
-    - Button
-    - Toggle
-    - Textbox
-    - Slider
-    - Dropdown
-    - Temas: Hacker, Linux, Black, Pink, Red, White
-    - Lógica visual e callbacks dos controles
-]]
-
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
