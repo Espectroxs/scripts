@@ -1563,6 +1563,35 @@ function library:AddWindow(title, options)
 						dropdown.Text = "      " .. dropdown_name
 						box.Size = UDim2.new(1, 0, 0, 0)
 
+dropdown.TextTransparency = 1
+
+local caption = Instance.new("TextLabel")
+caption.Name = "Caption"
+caption.BackgroundTransparency = 1
+caption.Position = UDim2.new(0, 10, 0, 0)
+caption.Size = UDim2.new(1, -40, 1, 0)
+caption.Font = dropdown.Font
+caption.TextSize = dropdown.TextSize
+caption.TextColor3 = dropdown.TextColor3
+caption.TextXAlignment = Enum.TextXAlignment.Left
+caption.TextTruncate = Enum.TextTruncate.AtEnd
+caption.TextWrapped = false
+caption.Active = false
+caption.ZIndex = dropdown.ZIndex
+caption.Parent = dropdown
+
+local function updateCaption()
+    caption.Text = dropdown.Text:gsub("^%s+", "")
+end
+
+updateCaption()
+dropdown:GetPropertyChangedSignal("Text"):Connect(updateCaption)
+
+-- Mantém a seta no canto direito.
+indicator.AnchorPoint = Vector2.new(1, 0.5)
+indicator.Position = UDim2.new(1, -8, 0.5, 0)
+indicator.Size = UDim2.new(0, 16, 0, 16)
+
 						local open = false
 						dropdown.MouseButton1Click:Connect(function()
 							open = not open
