@@ -1,5 +1,18 @@
+-- Library 1.0 | Lavender edition
+-- Original public API, callback arguments and return values retained.
+-- Set main_color in AddWindow options to override the violet accent.
+local Theme = {
+    accent = Color3.fromRGB(99, 71, 224),
+    surface = Color3.fromRGB(253, 252, 255),
+    soft = Color3.fromRGB(240, 236, 250),
+    border = Color3.fromRGB(213, 201, 239),
+    text = Color3.fromRGB(49, 40, 72),
+    muted = Color3.fromRGB(127, 117, 148),
+    inactive = Color3.fromRGB(218, 215, 226),
+}
+
 local ui_options = {
-	main_color = Color3.fromRGB(41, 74, 122),
+	main_color = Theme.accent,
 	min_size = Vector2.new(400, 300),
 	toggle_key = Enum.KeyCode.RightShift,
 	can_resize = true,
@@ -179,7 +192,7 @@ Title.BackgroundColor3 = Color3.new(1, 1, 1)
 Title.BackgroundTransparency = 1
 Title.Position = UDim2.new(0, 30, 0, 3)
 Title.Size = UDim2.new(0, 200, 0, 20)
-Title.Font = Enum.Font.Bangers
+Title.Font = Enum.Font.GothamMedium
 Title.Text = "Gamer Time"
 Title.TextColor3 = Color3.new(1, 1, 1)
 Title.TextSize = 20
@@ -232,7 +245,7 @@ TextBox.BackgroundTransparency = 1
 TextBox.BorderSizePixel = 0
 TextBox.Size = UDim2.new(1, 0, 0, 20)
 TextBox.ZIndex = 2
-TextBox.Font = Enum.Font.Bangers
+TextBox.Font = Enum.Font.GothamMedium
 TextBox.PlaceholderColor3 = Color3.new(0.698039, 0.698039, 0.698039)
 TextBox.PlaceholderText = "Input Text"
 TextBox.Text = ""
@@ -267,7 +280,7 @@ Title_2.BackgroundTransparency = 1
 Title_2.Position = UDim2.new(0.5, 0, 0.5, -10)
 Title_2.Size = UDim2.new(0, 0, 0, 20)
 Title_2.ZIndex = 2
-Title_2.Font = Enum.Font.Bangers
+Title_2.Font = Enum.Font.GothamMedium
 Title_2.Text = "Slider"
 Title_2.TextColor3 = Color3.new(1, 1, 1)
 Title_2.TextSize = 14
@@ -288,7 +301,7 @@ Value.BackgroundColor3 = Color3.new(1, 1, 1)
 Value.BackgroundTransparency = 1
 Value.Position = UDim2.new(1, -55, 0.5, -10)
 Value.Size = UDim2.new(0, 50, 0, 20)
-Value.Font = Enum.Font.Bangers
+Value.Font = Enum.Font.GothamMedium
 Value.Text = "0%"
 Value.TextColor3 = Color3.new(1, 1, 1)
 Value.TextSize = 14
@@ -298,7 +311,7 @@ TextLabel.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel.BackgroundTransparency = 1
 TextLabel.Position = UDim2.new(1, -20, -0.75, 0)
 TextLabel.Size = UDim2.new(0, 26, 0, 50)
-TextLabel.Font = Enum.Font.Bangers
+TextLabel.Font = Enum.Font.GothamMedium
 TextLabel.Text = "]"
 TextLabel.TextColor3 = Color3.new(1, 1, 1)
 TextLabel.TextSize = 14
@@ -308,7 +321,7 @@ TextLabel_2.BackgroundColor3 = Color3.new(1, 1, 1)
 TextLabel_2.BackgroundTransparency = 1
 TextLabel_2.Position = UDim2.new(1, -65, -0.75, 0)
 TextLabel_2.Size = UDim2.new(0, 26, 0, 50)
-TextLabel_2.Font = Enum.Font.Bangers
+TextLabel_2.Font = Enum.Font.GothamMedium
 TextLabel_2.Text = "["
 TextLabel_2.TextColor3 = Color3.new(1, 1, 1)
 TextLabel_2.TextSize = 14
@@ -392,7 +405,7 @@ TabButton.BorderSizePixel = 0
 TabButton.Position = UDim2.new(0.185185179, 0, 0, 0)
 TabButton.Size = UDim2.new(0, 71, 0, 20)
 TabButton.ZIndex = 2
-TabButton.Font = Enum.Font.Bangers
+TabButton.Font = Enum.Font.GothamMedium
 TabButton.Text = "Test tab"
 TabButton.TextColor3 = Color3.new(1, 1, 1)
 TabButton.TextSize = 14
@@ -803,6 +816,110 @@ Windows.BackgroundTransparency = 1
 Windows.Position = UDim2.new(0, 20, 0, 20)
 Windows.Size = UDim2.new(1, 20, 1, -20)
 
+-- Presentation overrides. Existing prefab names/order stay intact.
+do
+    for _, object in ipairs(Prefabs:GetDescendants()) do
+        if object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox") then
+            if object.Font ~= Enum.Font.Code then
+                object.Font = Enum.Font.GothamMedium
+                object.TextColor3 = Theme.text
+            end
+        end
+    end
+    local function roundedImage(object, color)
+        object.Image = "rbxassetid://2851926732"
+        object.ScaleType = Enum.ScaleType.Slice
+        object.SliceCenter = Rect.new(12, 12, 12, 12)
+        object.ImageColor3 = color
+    end
+    Window.ImageColor3 = Theme.surface
+    Title.Font = Enum.Font.GothamBold
+    Title.TextColor3 = Color3.new(1, 1, 1)
+    Title.TextSize = 16
+    Title.Size = UDim2.new(1, -48, 0, 20)
+    Toggle.ImageColor3 = Color3.new(1, 1, 1)
+    TabSelection.Position = UDim2.new(0, 16, 0, 36)
+    TabSelection.Size = UDim2.new(1, -32, 0, 32)
+    roundedImage(TabSelection, Theme.soft)
+    TabButtons.Position = UDim2.new(0, 4, 0, 3)
+    TabButtons.Size = UDim2.new(1, -8, 1, -6)
+    UIListLayout.Padding = UDim.new(0, 4)
+    Frame.Visible = false
+    Tabs.Position = UDim2.new(0, 16, 0, 80)
+    Tabs.Size = UDim2.new(1, -32, 1, -96)
+    UIListLayout_2.Padding = UDim.new(0, 8)
+    roundedImage(TextButton_Roundify_4px_2, Theme.soft)
+    TabButton.TextSize = 12
+    TabButton.TextColor3 = Theme.muted
+    roundedImage(TextBox_Roundify_4px, Theme.soft)
+    TextBox.Size = UDim2.new(1, 0, 0, 28)
+    TextBox.PlaceholderColor3 = Theme.muted
+    roundedImage(TextButton_Roundify_4px, Theme.soft)
+    roundedImage(Box, Theme.surface)
+    Objects.BackgroundColor3 = Theme.surface
+    Objects.ScrollBarImageColor3 = Theme.accent
+    DropdownButton.BackgroundColor3 = Theme.surface
+    Indicator_2.ImageColor3 = Theme.accent
+    roundedImage(Folder, Theme.soft)
+    roundedImage(TextButton_Roundify_4px_3, Theme.accent)
+    Button.TextColor3 = Color3.new(1, 1, 1)
+    Toggle_2.ImageColor3 = Color3.new(1, 1, 1)
+    roundedImage(TextButton_Roundify_4px_5, Theme.accent)
+    Button_2.TextColor3 = Color3.new(1, 1, 1)
+    Button_2.TextSize = 13
+    HorizontalAlignment.Size = UDim2.new(1, 0, 0, 28)
+    roundedImage(Keybind, Theme.soft)
+    roundedImage(Input_Roundify_4px, Theme.border)
+    Input.TextColor3 = Theme.accent
+    roundedImage(Console, Theme.soft)
+    Source.TextColor3 = Theme.text
+    Lines.TextColor3 = Theme.muted
+    Comments.TextColor3 = Color3.fromRGB(74, 128, 96)
+    Globals.TextColor3 = Color3.fromRGB(51, 108, 162)
+    Keywords.TextColor3 = Theme.accent
+    Strings.TextColor3 = Color3.fromRGB(152, 75, 119)
+    Numbers.TextColor3 = Color3.fromRGB(172, 98, 41)
+    Tokens.TextColor3 = Theme.muted
+    roundedImage(ColorPicker, Theme.soft)
+    -- HSV palette and saturation images are intentionally unchanged.
+    Slider.Size = UDim2.new(1, 0, 0, 38)
+    Slider.ImageTransparency = 1
+    Title_2.Position = UDim2.new(0, 0, 0, 0)
+    Title_2.Size = UDim2.new(1, -60, 0, 20)
+    Title_2.TextXAlignment = Enum.TextXAlignment.Left
+    Value.Position = UDim2.new(1, -55, 0, 0)
+    Value.TextColor3 = Theme.accent
+    TextLabel.Visible = false
+    TextLabel_2.Visible = false
+    local track = Instance.new("ImageLabel")
+    track.Name = "Track"
+    track.BackgroundTransparency = 1
+    track.Position = UDim2.new(0, 0, 0, 27)
+    track.Size = UDim2.new(1, 0, 0, 6)
+    track.ZIndex = Indicator.ZIndex
+    roundedImage(track, Theme.inactive)
+    track.Parent = Slider
+    Indicator.Position = track.Position
+    Indicator.Size = UDim2.new(0, 0, 0, 6)
+    Indicator.ZIndex = track.ZIndex + 1
+    roundedImage(Indicator, Theme.accent)
+    Switch.Size = UDim2.new(0, 38, 0, 20)
+    Switch.TextTransparency = 1
+    Switch.AutoButtonColor = false
+    Title_3.Position = UDim2.new(1, 10, 0, 0)
+    roundedImage(TextButton_Roundify_4px_4, Theme.inactive)
+    TextButton_Roundify_4px_4.ImageTransparency = 0
+    local knob = Instance.new("ImageLabel")
+    knob.Name = "Knob"
+    knob.BackgroundTransparency = 1
+    knob.Image = "rbxassetid://3570695787"
+    knob.ImageColor3 = Color3.new(1, 1, 1)
+    knob.Size = UDim2.new(0, 16, 0, 16)
+    knob.Position = UDim2.new(0, 2, 0, 2)
+    knob.ZIndex = Switch.ZIndex + 1
+    knob.Parent = Switch
+end
+
 --[[ Script ]]--
 script.Parent = imgui
 
@@ -964,7 +1081,7 @@ function library:AddWindow(title, options)
 		local Toggle = Bar:FindFirstChild("Toggle")
 
 		spawn(function()
-			while true do
+			while Window.Parent do
 				Bar.BackgroundColor3 = options.main_color
 				Base.BackgroundColor3 = options.main_color
 				Base.ImageColor3 = options.main_color
@@ -1064,7 +1181,7 @@ function library:AddWindow(title, options)
 					oldy = Window.AbsoluteSize.Y
 					Resize(open_close, {Rotation = 0}, options.tween_time)
 					Resize(Window, {Size = UDim2.new(0, Window.AbsoluteSize.X, 0, 26)}, options.tween_time)
-					open_close.Parent:FindFirstChild("Base").Transparency = 1
+					open_close.Parent:FindFirstChild("Base").ImageTransparency = 1
 
 				else
 					-- Open
@@ -1077,7 +1194,7 @@ function library:AddWindow(title, options)
 
 					Resize(open_close, {Rotation = 90}, options.tween_time)
 					Resize(Window, {Size = UDim2.new(0, Window.AbsoluteSize.X, 0, oldy)}, options.tween_time)
-					open_close.Parent:FindFirstChild("Base").Transparency = 0
+					open_close.Parent:FindFirstChild("Base").ImageTransparency = 0
 
 				end
 
@@ -1103,7 +1220,7 @@ function library:AddWindow(title, options)
 				local new_button = Prefabs:FindFirstChild("TabButton"):Clone()
 				new_button.Parent = tab_buttons
 				new_button.Text = tab_name
-				new_button.Size = UDim2.new(0, gNameLen(new_button), 0, 20)
+				new_button.Size = UDim2.new(0, gNameLen(new_button) + 8, 0, 26)
 				new_button.ZIndex = new_button.ZIndex + (windows * 10)
 				new_button:GetChildren()[1].ZIndex = new_button:GetChildren()[1].ZIndex + (windows * 10)
 
@@ -1115,16 +1232,18 @@ function library:AddWindow(title, options)
 					if dropdown_open then return end
 					for i, v in next, tab_buttons:GetChildren() do
 						if not (v:IsA("UIListLayout")) then
-							v:GetChildren()[1].ImageColor3 = Color3.fromRGB(52, 53, 56)
-							Resize(v, {Size = UDim2.new(0, v.AbsoluteSize.X, 0, 20)}, options.tween_time)
+							v:GetChildren()[1].ImageColor3 = Theme.soft
+                            v.TextColor3 = Theme.muted
+							Resize(v, {Size = UDim2.new(0, v.AbsoluteSize.X, 0, 26)}, options.tween_time)
 						end
 					end
 					for i, v in next, tabs:GetChildren() do
 						v.Visible = false
 					end
 
-					Resize(new_button, {Size = UDim2.new(0, new_button.AbsoluteSize.X, 0, 25)}, options.tween_time)
-					new_button:GetChildren()[1].ImageColor3 = Color3.fromRGB(73, 75, 79)
+					Resize(new_button, {Size = UDim2.new(0, new_button.AbsoluteSize.X, 0, 26)}, options.tween_time)
+					new_button:GetChildren()[1].ImageColor3 = options.main_color
+                    new_button.TextColor3 = Color3.new(1, 1, 1)
 					new_tab.Visible = true
 				end
 
@@ -1159,12 +1278,12 @@ function library:AddWindow(title, options)
 
 						button.Parent = new_tab
 						button.Text = button_text
-						button.Size = UDim2.new(0, gNameLen(button), 0, 20)
+						button.Size = UDim2.new(0, gNameLen(button) + 12, 0, 28)
 						button.ZIndex = button.ZIndex + (windows * 10)
 						button:GetChildren()[1].ZIndex = button:GetChildren()[1].ZIndex + (windows * 10)
 
 						spawn(function()
-							while true do
+							while button.Parent do
 								if button and button:GetChildren()[1] then
 									button:GetChildren()[1].ImageColor3 = options.main_color
 								end
@@ -1195,25 +1314,27 @@ function library:AddWindow(title, options)
 						switch.ZIndex = switch.ZIndex + (windows * 10)
 						switch:GetChildren()[1].ZIndex = switch:GetChildren()[1].ZIndex + (windows * 10)
 
-						spawn(function()
-							while true do
-								if switch and switch:GetChildren()[1] then
-									switch:GetChildren()[1].ImageColor3 = options.main_color
-								end
-								RS.Heartbeat:Wait()
-							end
-						end)
+                        local knob = switch:FindFirstChild("Knob")
+                        knob.ZIndex = switch.ZIndex + 1
+                        local function renderSwitch(enabled)
+                            Resize(switch:GetChildren()[1], {
+                                ImageColor3 = enabled and options.main_color or Theme.inactive,
+                            }, options.tween_time)
+                            Resize(knob, {Position = UDim2.new(0, enabled and 20 or 2, 0, 2)}, options.tween_time)
+                        end
 
 						local toggled = false
 						switch.MouseButton1Click:Connect(function()
 							toggled = not toggled
 							switch.Text = toggled and utf8.char(10003) or ""
+                            renderSwitch(toggled)
 							pcall(callback, toggled)
 						end)
 
 						function switch_data:Set(bool)
 							toggled = (typeof(bool) == "boolean") and bool or false
 							switch.Text = toggled and utf8.char(10003) or ""
+                            renderSwitch(toggled)
 							pcall(callback,toggled)
 						end
 
@@ -1269,6 +1390,8 @@ function library:AddWindow(title, options)
 						local title = slider:FindFirstChild("Title")
 						local indicator = slider:FindFirstChild("Indicator")
 						local value = slider:FindFirstChild("Value")
+                        slider.Track.ZIndex = slider.Track.ZIndex + (windows * 10)
+                        indicator.ImageColor3 = options.main_color
 						title.ZIndex = title.ZIndex + (windows * 10)
 						indicator.ZIndex = indicator.ZIndex + (windows * 10)
 						value.ZIndex = value.ZIndex + (windows * 10)
@@ -1309,7 +1432,7 @@ function library:AddWindow(title, options)
 													size = max
 												end
 
-												Resize(indicator, {Size = UDim2.new(size or min, 0, 0, 20)}, options.tween_time)
+												Resize(indicator, {Size = UDim2.new(size or min, 0, 0, 6)}, options.tween_time)
 												local p = math.floor((size or min) * 100)
 
 												local maxv = slider_options.max
@@ -1337,7 +1460,7 @@ function library:AddWindow(title, options)
 								new_value = tonumber(new_value) or 0
 								new_value = (((new_value >= 0 and new_value <= 100) and new_value) / 100)
 
-								Resize(indicator, {Size = UDim2.new(new_value or 0, 0, 0, 20)}, options.tween_time)
+								Resize(indicator, {Size = UDim2.new(new_value or 0, 0, 0, 6)}, options.tween_time)
 								local p = math.floor((new_value or 0) * 100)
 
 								local maxv = slider_options.max
@@ -1475,9 +1598,11 @@ function library:AddWindow(title, options)
 
 							object.MouseEnter:Connect(function()
 								object.BackgroundColor3 = options.main_color
+                                object.TextColor3 = Color3.new(1, 1, 1)
 							end)
 							object.MouseLeave:Connect(function()
-								object.BackgroundColor3 = Color3.fromRGB(33, 34, 36)
+								object.BackgroundColor3 = Theme.surface
+                                object.TextColor3 = Theme.text
 							end)
 
 							if open then
@@ -1771,8 +1896,8 @@ function library:AddWindow(title, options)
 									elseif quote == true and c == "]" then
 										quote = false
 									end
-									if quote == false and c == "\]" then
-										highlight = highlight .. "\]"
+									if quote == false and c == "]" then
+										highlight = highlight .. "]"
 									elseif c == "\n" then
 										highlight = highlight .. "\n"
 									elseif c == "\t" then
@@ -1941,7 +2066,7 @@ function library:AddWindow(title, options)
 						button.Text = "      " .. folder_name
 
 						spawn(function()
-							while true do
+							while button.Parent do
 								if button and button:GetChildren()[1] then
 									button:GetChildren()[1].ImageColor3 = options.main_color
 								end
@@ -1973,7 +2098,7 @@ function library:AddWindow(title, options)
 						end)
 
 						spawn(function()
-							while true do
+							while folder.Parent do
 								Resize(folder, {Size = UDim2.new(1, 0, 0, (open and gFolderLen() or 20))}, options.tween_time)
 								wait()
 							end
