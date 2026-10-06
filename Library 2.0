@@ -1,6 +1,3 @@
--- Lumen UI | Standalone demonstration
--- Paste this complete file into a client LocalScript to try the interface.
-local library = (function()
 -- Lumen UI 2.0 | Client-side Roblox / LuaU
 -- Original AddWindow/AddTab/Add* calling conventions, with a new interface.
 -- No external UI assets, downloaded code, polling loops, or game automation.
@@ -94,3 +91,6 @@ local function theme(accent)
         surface = WHITE,
         border = Color3.fromRGB(232, 225, 244),
         text = Color3.fromRGB(48, 39, 67),
+        muted = Color3.fromRGB(139, 129, 158),
+        inactive = Color3.fromRGB(220, 216, 231),
+        green = Color3.fromRGB(68, 153, 121),
