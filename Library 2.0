@@ -94,3 +94,1678 @@ local function theme(accent)
         muted = Color3.fromRGB(139, 129, 158),
         inactive = Color3.fromRGB(220, 216, 231),
         green = Color3.fromRGB(68, 153, 121),
+    }
+end
+
+local function viewport()
+    local camera = Workspace.CurrentCamera
+    return camera and camera.ViewportSize or Vector2.new(1280, 720)
+end
+
+local function newScope(window, owner)
+    local scope = { _connections = {}, _cleanups = {}, _dead = false }
+    window._scopes[scope] = true
+    function scope:on(signal, callback)
+        local connection = signal:Connect(function(...)
+            if not self._dead and not window._dead then callback(...) end
+        end)
+        table.insert(self._connections, connection)
+        return connection
+    end
+    function scope:cleanup(callback)
+        table.insert(self._cleanups, callback)
+    end
+    function scope:Destroy()
+        if self._dead then return end
+        self._dead = true
+        for _, connection in ipairs(self._connections) do connection:Disconnect() end
+        for _, callback in ipairs(self._cleanups) do callback() end
+        self._connections, self._cleanups = {}, {}
+        window._scopes[self] = nil
+    end
+    table.insert(scope._connections, owner.Destroying:Connect(function() scope:Destroy() end))
+    return scope
+end
+
+local function paint(window, scope, callback)
+    window._paints[callback] = true
+    callback(window._theme)
+    scope:cleanup(function() window._paints[callback] = nil end)
+end
+
+local function animate(window, object, properties, duration)
+    if window._dead or not object.Parent then return end
+    local previous = window._tweens[object]
+    if previous then previous.stop() end
+    local tween = TweenService:Create(object,
+        TweenInfo.new(duration or window._options.tween_time, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+        properties)
+    local entry = {}
+    local completed, destroying, released
+    local function release()
+        if released then return end
+        released = true
+        if completed then completed:Disconnect() end
+        if destroying then destroying:Disconnect() end
+        if window._tweens[object] == entry then window._tweens[object] = nil end
+    end
+    entry.stop = function() tween:Cancel(); release() end
+    window._tweens[object] = entry
+    completed = tween.Completed:Connect(release)
+    destroying = object.Destroying:Connect(entry.stop)
+    tween:Play()
+end
+
+-- Icons are small native Frames; their appearance does not depend on asset URLs.
+local function icon(parent, name, color, position, size)
+    local root = make("Frame", parent, {
+        Name = "Icon_" .. tostring(name),
+        BackgroundTransparency = 1,
+        Position = position or UDim2.new(),
+        Size = UDim2.new(0, size or 20, 0, size or 20),
+    })
+    local pieces = {}
+    local function line(x1, y1, x2, y2, width)
+        local dx, dy = x2 - x1, y2 - y1
+        local part = make("Frame", root, {
+            AnchorPoint = Vector2.new(0.5, 0.5),
+            Position = UDim2.new((x1 + x2) / 48, 0, (y1 + y2) / 48, 0),
+            Size = UDim2.new(math.sqrt(dx * dx + dy * dy) / 24, 0, 0, width or 1.6),
+            Rotation = math.deg(math.atan2(dy, dx)),
+            BackgroundColor3 = color,
+        })
+        corner(part, 2)
+        table.insert(pieces, part)
+    end
+    local function ring(x, y, w, h, radius)
+        local part = make("Frame", root, {
+            BackgroundTransparency = 1,
+            Position = UDim2.new(x / 24, 0, y / 24, 0),
+            Size = UDim2.new(w / 24, 0, h / 24, 0),
+        })
+        corner(part, radius or 3)
+        local border = stroke(part, color, 0, 1.5)
+        table.insert(pieces, border)
+    end
+    if name == "home" then
+        line(3, 11, 12, 4); line(12, 4, 21, 11)
+        line(6, 10, 6, 20); line(6, 20, 18, 20); line(18, 20, 18, 10)
+        line(10, 20, 10, 14); line(10, 14, 14, 14); line(14, 14, 14, 20)
+    elseif name == "search" then
+        ring(3, 3, 12, 12, 20); line(14, 14, 21, 21)
+    elseif name == "settings" then
+        line(4, 6, 20, 6); line(4, 12, 20, 12); line(4, 18, 20, 18)
+        ring(7, 3, 4, 6, 2); ring(14, 9, 4, 6, 2); ring(7, 15, 4, 6, 2)
+    elseif name == "bag" then
+        ring(5, 8, 14, 13, 3); ring(8, 3, 8, 9, 4)
+    elseif name == "profile" then
+        ring(8, 3, 8, 8, 20); ring(4, 14, 16, 8, 8)
+    elseif name == "star" then
+        local points = { {12, 2}, {15, 9}, {22, 10}, {17, 15}, {18, 22}, {12, 18},
+            {6, 22}, {7, 15}, {2, 10}, {9, 9}, {12, 2} }
+        for i = 1, #points - 1 do line(points[i][1], points[i][2], points[i+1][1], points[i+1][2]) end
+    elseif name == "bolt" then
+        line(14, 2, 5, 13); line(5, 13, 12, 13); line(12, 13, 10, 22)
+        line(10, 22, 20, 10); line(20, 10, 13, 10); line(13, 10, 14, 2)
+    elseif name == "chevron" then
+        line(8, 5, 15, 12); line(15, 12, 8, 19)
+    elseif name == "close" then
+        line(6, 6, 18, 18); line(18, 6, 6, 18)
+    elseif name == "minus" then
+        line(5, 12, 19, 12)
+    elseif name == "check" then
+        line(4, 12, 9, 17); line(9, 17, 20, 6)
+    elseif name == "keyboard" then
+        ring(2, 5, 20, 14, 3)
+        for y = 9, 13, 4 do for x = 6, 18, 4 do line(x, y, x + 1, y) end end
+        line(7, 16, 17, 16)
+    elseif name == "resize" then
+        line(9, 20, 20, 9); line(15, 20, 20, 15)
+    else
+        ring(3, 3, 7, 7, 2); ring(14, 3, 7, 7, 2)
+        ring(3, 14, 7, 7, 2); ring(14, 14, 7, 7, 2)
+    end
+    local function recolor(nextColor)
+        for _, part in ipairs(pieces) do
+            if part:IsA("UIStroke") then part.Color = nextColor else part.BackgroundColor3 = nextColor end
+        end
+    end
+    return root, recolor
+end
+
+local function inputPoint(input)
+    return Vector2.new(input.Position.X, input.Position.Y)
+end
+
+local function cancelPointer()
+    local pointer = library._pointer
+    library._pointer = nil
+    if pointer and pointer.finish then pointer.finish() end
+end
+
+local function startPointer(window, owner, input, update, finish)
+    local kind = input.UserInputType
+    if kind ~= Enum.UserInputType.MouseButton1 and kind ~= Enum.UserInputType.Touch then return end
+    cancelPointer()
+    closePopup()
+    library._pointer = {
+        window = window, owner = owner, input = input, update = update, finish = finish,
+    }
+    update(inputPoint(input))
+end
+
+local function cancelCapture()
+    local capture = library._capture
+    library._capture = nil
+    if capture then capture.cancel() end
+end
+
+local function validKey(key)
+    if typeof(key) == "string" then
+        local ok, result = pcall(function() return Enum.KeyCode[key] end)
+        key = ok and result or nil
+    end
+    if typeof(key) ~= "EnumItem" then return nil end
+    if key.EnumType == Enum.KeyCode and key ~= Enum.KeyCode.Unknown then return key end
+    if key == Enum.UserInputType.MouseButton1 or key == Enum.UserInputType.MouseButton2
+        or key == Enum.UserInputType.MouseButton3 then return key end
+    return nil
+end
+
+closePopup = function()
+    local popup = library._popup
+    library._popup = nil
+    if popup then
+        popup.close()
+        popup.layer:Destroy()
+    end
+end
+
+local function parentForGui(explicitParent)
+    if typeof(explicitParent) == "Instance" then return explicitParent end
+    if type(gethui) == "function" then
+        local ok, result = pcall(gethui)
+        if ok and typeof(result) == "Instance" then return result end
+    end
+    local ok, core = pcall(function()
+        local candidate = game:GetService("CoreGui")
+        local probe = Instance.new("Folder")
+        probe.Parent = candidate
+        probe:Destroy()
+        return candidate
+    end)
+    if ok then return core end
+    local player = Players.LocalPlayer
+    assert(player, "Lumen UI must run on the client in a LocalScript.")
+    return player:WaitForChild("PlayerGui")
+end
+
+local function ensureGui(explicitParent)
+    if library._gui and library._gui.Parent then return end
+    library._destroyed = false
+    local environment = type(getgenv) == "function" and getgenv() or _G
+    local previous = environment[RUNTIME_KEY]
+    if previous and previous ~= library and type(previous.Destroy) == "function" then previous:Destroy() end
+    library._environment = environment
+    environment[RUNTIME_KEY] = library
+    local parent = parentForGui(explicitParent)
+    local stale = parent:FindFirstChild("LumenUI")
+    if stale then stale:Destroy() end
+    local gui = make("ScreenGui", parent, {
+        Name = "LumenUI",
+        ResetOnSpawn = false,
+        IgnoreGuiInset = true,
+        DisplayOrder = 100,
+        ZIndexBehavior = Enum.ZIndexBehavior.Global,
+    })
+    library._gui = gui
+    library._connections = {}
+    local function listen(signal, callback)
+        table.insert(library._connections, signal:Connect(callback))
+    end
+    listen(InputService.InputChanged, function(input)
+        local pointer = library._pointer
+        if not pointer then return end
+        if pointer.window._dead or not pointer.window._visible or not pointer.owner.Parent or not gui.Enabled then
+            cancelPointer()
+            return
+        end
+        if pointer.input.UserInputType == Enum.UserInputType.Touch then
+            if input == pointer.input then pointer.update(inputPoint(input)) end
+        elseif input.UserInputType == Enum.UserInputType.MouseMovement then
+            pointer.update(inputPoint(input))
+        end
+    end)
+    listen(InputService.InputEnded, function(input)
+        local pointer = library._pointer
+        if pointer and (input == pointer.input
+            or (pointer.input.UserInputType == Enum.UserInputType.MouseButton1
+                and input.UserInputType == Enum.UserInputType.MouseButton1)) then cancelPointer() end
+    end)
+    listen(InputService.WindowFocusReleased, function()
+        cancelPointer()
+        cancelCapture()
+        closePopup()
+    end)
+    listen(InputService.InputBegan, function(input, processed)
+        if library._capture then
+            local capture = library._capture
+            if input.KeyCode == Enum.KeyCode.Escape then cancelCapture(); return end
+            local key = validKey(input.KeyCode) or (capture.allowMouse and validKey(input.UserInputType))
+            if key then library._capture = nil; capture.complete(key) end
+            return
+        end
+        if processed or InputService:GetFocusedTextBox() then return end
+        if input.KeyCode == Enum.KeyCode.Escape then closePopup() end
+        for _, window in ipairs(library._windows) do
+            if not window._dead and (input.KeyCode == window._options.toggle_key
+                or input.UserInputType == window._options.toggle_key) then
+                window:SetVisible(not window._visible)
+            end
+        end
+        local pending = {}
+        for binding in pairs(library._bindings) do table.insert(pending, binding) end
+        for _, binding in ipairs(pending) do
+            if not binding.scope._dead and not binding.window._dead
+                and (binding.window._visible or binding.activeWhenHidden)
+                and (input.KeyCode == binding.key or input.UserInputType == binding.key) then
+                call(binding.callback, binding.key)
+            end
+        end
+    end)
+    listen(gui.Destroying, function() library:Destroy() end)
+end
+
+local function filterContainer(context, query, inherited)
+    local count = 0
+    for _, record in ipairs(context._records) do
+        local root = record.root
+        if root.Parent then
+            local ownMatch = query == "" or inherited or
+                string.find(string.lower(tostring(record.text())), query, 1, true) ~= nil
+            local matched = ownMatch
+            if record.children then
+                local children = filterContainer(record.children, query, ownMatch)
+                matched = ownMatch or children > 0
+                if record.searchOpen then record.searchOpen(query ~= "" and matched) end
+            end
+            local visible = record.visible and matched
+            root.Visible = visible
+            if visible then count = count + 1 end
+        end
+    end
+    return count
+end
+
+refreshSearch = function(window)
+    if window._dead or window._filtering then return end
+    window._filtering = true
+    local query = string.lower(window._search.Text):match("^%s*(.-)%s*$")
+    window._query = query
+    local firstMatch
+    for _, tab in ipairs(window._tabs) do
+        local tabMatch = query ~= "" and string.find(string.lower(tab.Name), query, 1, true) ~= nil
+        local count = filterContainer(tab, query, tabMatch)
+        tab._hasMatch = query == "" or tabMatch or count > 0
+        tab._button.Visible = tab._hasMatch
+        tab._empty.Text = query ~= "" and "No controls match your search." or "Add your first control to this tab."
+        tab._empty.Visible = count == 0
+        if tab._hasMatch and not firstMatch then firstMatch = tab end
+    end
+    if window._activeTab and not window._activeTab._hasMatch and firstMatch then firstMatch:Show() end
+    window._filtering = false
+end
+
+local function deferSearch(window)
+    if window._searchPending then return end
+    window._searchPending = true
+    task.defer(function()
+        window._searchPending = false
+        if not window._dead then refreshSearch(window) end
+    end)
+end
+
+local function register(context, root, scope, getText, children, searchOpen)
+    local record = {
+        root = root, text = getText, visible = true, children = children, searchOpen = searchOpen,
+    }
+    table.insert(context._records, record)
+    scope:cleanup(function()
+        for index, candidate in ipairs(context._records) do
+            if candidate == record then table.remove(context._records, index); break end
+        end
+        if library._pointer and library._pointer.owner == root then cancelPointer() end
+        if library._popup and library._popup.owner == root then closePopup() end
+        if library._capture and library._capture.owner == root then cancelCapture() end
+        deferSearch(context._window)
+    end)
+    scope:on(root:GetPropertyChangedSignal("Visible"), function()
+        if not context._window._filtering then record.visible = root.Visible end
+    end)
+    deferSearch(context._window)
+    return record
+end
+
+local function nextOrder(context)
+    context._order = context._order + 1
+    return context._order
+end
+
+local function card(context, name, height, className)
+    local window = context._window
+    local root = make(className or "Frame", context._content, {
+        Name = name,
+        BackgroundColor3 = window._theme.surface,
+        Size = UDim2.new(1, 0, 0, height or 54),
+        LayoutOrder = nextOrder(context),
+    })
+    corner(root, 12)
+    stroke(root, window._theme.border)
+    local scope = newScope(window, root)
+    return root, scope
+end
+
+local function handle(context, root, scope, record)
+    local data = { Instance = root }
+    function data:Destroy() root:Destroy() end
+    function data:SetVisible(visible)
+        record.visible = visible == true
+        refreshSearch(context._window)
+    end
+    function data:SetText(text)
+        local title = root:FindFirstChild("Title")
+        if title and title:IsA("TextLabel") then title.Text = tostring(text or "")
+        elseif root:IsA("TextButton") then root.Text = tostring(text or "") end
+        deferSearch(context._window)
+    end
+    return data
+end
+
+function Container:AddLabel(text)
+    local window = self._window
+    local root = label(self._content, text or "New Label", nil, UDim2.new(1, 0, 0, 26), window._theme.muted, 12)
+    root.Name = "Label"
+    root.LayoutOrder = nextOrder(self)
+    root.TextWrapped = true
+    root.TextTruncate = Enum.TextTruncate.None
+    root.AutomaticSize = Enum.AutomaticSize.Y
+    local scope = newScope(window, root)
+    register(self, root, scope, function() return root.Text end)
+    scope:on(root:GetPropertyChangedSignal("Text"), function() deferSearch(window) end)
+    return root
+end
+
+function Container:AddButton(text, callback)
+    local window = self._window
+    local root, scope = card(self, "Button", self._horizontal and 42 or 48, "TextButton")
+    root.Text = tostring(text or "New Button")
+    root.Font = Enum.Font.GothamSemibold
+    root.TextSize = 13
+    root.TextXAlignment = self._horizontal and Enum.TextXAlignment.Center or Enum.TextXAlignment.Left
+    root.TextTruncate = Enum.TextTruncate.AtEnd
+    padding(root, 16, 0, self._horizontal and 16 or 46, 0)
+    local recolor
+    if not self._horizontal then
+        local _, setColor = icon(root, "chevron", window._theme.accent, UDim2.new(1, -15, 0.5, -9), 18)
+        recolor = setColor
+    end
+    local hovered = false
+    local function render(t)
+        root.TextColor3 = t.accent
+        animate(window, root, { BackgroundColor3 = hovered and t.accent:Lerp(WHITE, 0.85) or t.pale })
+        if recolor then recolor(t.accent) end
+    end
+    paint(window, scope, render)
+    scope:on(root.MouseEnter, function() hovered = true; render(window._theme) end)
+    scope:on(root.MouseLeave, function() hovered = false; render(window._theme) end)
+    scope:on(root.Activated, function() call(callback) end)
+    register(self, root, scope, function() return root.Text end)
+    scope:on(root:GetPropertyChangedSignal("Text"), function() deferSearch(window) end)
+    return root
+end
+
+function Container:AddSwitch(text, callback, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local root, scope = card(self, "Switch", 56, "TextButton")
+    local title = label(root, text or "New Switch", UDim2.new(0, 16, 0, 9), UDim2.new(1, -96, 0, 20))
+    title.Name = "Title"
+    local subtitle = label(root, options.description or "Disabled", UDim2.new(0, 16, 0, 30),
+        UDim2.new(1, -96, 0, 16), window._theme.muted, 11)
+    local track = make("Frame", root, {
+        Name = "Track", AnchorPoint = Vector2.new(1, 0.5),
+        Position = UDim2.new(1, -16, 0.5, 0), Size = UDim2.new(0, 42, 0, 24),
+    })
+    corner(track, 20)
+    local knob = make("Frame", track, {
+        Name = "Knob", BackgroundColor3 = WHITE, Position = UDim2.new(0, 3, 0, 3),
+        Size = UDim2.new(0, 18, 0, 18),
+    })
+    corner(knob, 20)
+    local record = register(self, root, scope, function() return title.Text .. " " .. subtitle.Text end)
+    local data = handle(context, root, scope, record)
+    local value, enabled = false, true
+    local function render(t)
+        title.TextColor3 = enabled and t.text or t.muted
+        subtitle.Text = options.description or (value and "Enabled" or "Disabled")
+        animate(window, track, { BackgroundColor3 = value and t.accent or t.inactive })
+        animate(window, knob, { Position = UDim2.new(0, value and 21 or 3, 0, 3) })
+    end
+    function data:Set(nextValue, silent)
+        if scope._dead then return end
+        value = nextValue == true
+        render(window._theme)
+        if not silent then call(callback, value) end
+    end
+    function data:Get() return value end
+    function data:SetEnabled(nextValue)
+        enabled = nextValue == true
+        root.Selectable = enabled
+        render(window._theme)
+    end
+    scope:on(root.Activated, function() if enabled then data:Set(not value) end end)
+    paint(window, scope, render)
+    if options.default == true then data:Set(true, options.silent_default == true) end
+    return data, root
+end
+
+function Container:AddTextBox(text, callback, options)
+    local wasOmitted = type(options) ~= "table"
+    options = type(options) == "table" and options or {}
+    local window = self._window
+    local root, scope = card(self, "TextBox", 48, "TextBox")
+    root.Font = Enum.Font.GothamMedium
+    root.TextSize = 13
+    root.TextColor3 = window._theme.text
+    root.PlaceholderColor3 = window._theme.muted
+    root.PlaceholderText = tostring(text or "New TextBox")
+    root.Text = tostring(options.default or "")
+    root.ClearTextOnFocus = false
+    root.TextXAlignment = Enum.TextXAlignment.Left
+    padding(root, 16, 0)
+    local border = root:FindFirstChildOfClass("UIStroke")
+    local focused = false
+    local function render(t) border.Color = focused and t.accent or t.border end
+    scope:on(root.Focused, function() focused = true; render(window._theme) end)
+    scope:on(root.FocusLost, function(enterPressed)
+        focused = false
+        render(window._theme)
+        if (enterPressed or options.submit_on_focus_lost == true) and #root.Text > 0 then
+            call(callback, root.Text)
+            if wasOmitted or options.clear == true then root.Text = "" end
+        end
+    end)
+    register(self, root, scope, function() return root.PlaceholderText end)
+    paint(window, scope, render)
+    return root
+end
+
+function Container:AddSlider(text, callback, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local minimum, maximum = numeric(options.min, 0), numeric(options.max, 100)
+    if minimum > maximum then minimum, maximum = maximum, minimum end
+    local step = math.max(0.000001, numeric(options.step, 1))
+    local root, scope = card(self, "Slider", 76)
+    local title = label(root, text or "New Slider", UDim2.new(0, 16, 0, 10), UDim2.new(1, -114, 0, 22))
+    title.Name = "Title"
+    local valueLabel = label(root, "", UDim2.new(1, -99, 0, 10), UDim2.new(0, 83, 0, 22), window._theme.accent, 12)
+    valueLabel.Name = "Value"
+    valueLabel.TextXAlignment = Enum.TextXAlignment.Right
+    local hit = make("TextButton", root, {
+        Name = "SliderInput", BackgroundTransparency = 1,
+        Position = UDim2.new(0, 16, 0, 34), Size = UDim2.new(1, -32, 0, 28), Active = true,
+    })
+    local track = make("Frame", hit, {
+        Name = "Track", BackgroundColor3 = window._theme.inactive,
+        Position = UDim2.new(0, 0, 0.5, -3), Size = UDim2.new(1, 0, 0, 6),
+    })
+    corner(track, 6)
+    local fill = make("Frame", track, { Name = "Indicator", Size = UDim2.new(0, 0, 1, 0) })
+    corner(fill, 6)
+    local knob = make("Frame", track, {
+        Name = "Knob", AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = UDim2.new(0, 16, 0, 16), Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = WHITE,
+    })
+    corner(knob, 20)
+    local knobStroke = stroke(knob, window._theme.accent, 0, 2)
+    local record = register(self, root, scope, function() return title.Text end)
+    local data = handle(context, root, scope, record)
+    local value = minimum
+    local function fraction() return maximum == minimum and 0 or (value - minimum) / (maximum - minimum) end
+    local function render(t)
+        fill.BackgroundColor3 = t.accent
+        knobStroke.Color = t.accent
+        valueLabel.TextColor3 = t.accent
+        fill.Size = UDim2.new(fraction(), 0, 1, 0)
+        knob.Position = UDim2.new(fraction(), 0, 0.5, 0)
+        valueLabel.Text = string.format("%.6g", value) .. tostring(options.suffix or "")
+    end
+    local function assign(nextValue, silent, force)
+        if scope._dead then return end
+        nextValue = math.clamp(numeric(nextValue, minimum), minimum, maximum)
+        local snapped = minimum + math.floor((nextValue - minimum) / step + 0.5) * step
+        snapped = math.clamp(snapped, minimum, maximum)
+        if nextValue == maximum then snapped = maximum end
+        local changed = math.abs(snapped - value) > 0.0000001
+        value = snapped
+        render(window._theme)
+        if not silent and (changed or force) then call(callback, value) end
+    end
+    function data:Set(percent, silent)
+        local amount = math.clamp(numeric(percent, 0), 0, 100) / 100
+        assign(minimum + (maximum - minimum) * amount, silent, true)
+    end
+    data.SetPercent = data.Set
+    function data:SetValue(nextValue, silent) assign(nextValue, silent, true) end
+    function data:Get() return value end
+    function data:GetPercent() return fraction() * 100 end
+    scope:on(hit.InputBegan, function(input)
+        if options.readonly == true then return end
+        startPointer(window, root, input, function(point)
+            local width = track.AbsoluteSize.X
+            if width <= 0 then return end
+            local amount = math.clamp((point.X - track.AbsolutePosition.X) / width, 0, 1)
+            assign(minimum + (maximum - minimum) * amount, false, false)
+        end)
+    end)
+    paint(window, scope, render)
+    assign(options.default or minimum, options.silent_default == true, true)
+    return data, root
+end
+
+function Container:AddKeybind(text, callback, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local root, scope = card(self, "Keybind", 54)
+    local title = label(root, text or "New Keybind", UDim2.new(0, 16, 0, 16), UDim2.new(1, -150, 0, 22))
+    title.Name = "Title"
+    local button = make("TextButton", root, {
+        Name = "Input", BackgroundColor3 = window._theme.pale,
+        AnchorPoint = Vector2.new(1, 0.5), Position = UDim2.new(1, -14, 0.5, 0),
+        Size = UDim2.new(0, 110, 0, 30), TextSize = 11, TextColor3 = window._theme.accent,
+    })
+    corner(button, 8)
+    local record = register(self, root, scope, function() return title.Text end)
+    local data = handle(context, root, scope, record)
+    local binding = {
+        key = validKey(options.standard) or Enum.KeyCode.RightShift,
+        callback = callback, scope = scope, window = window,
+        activeWhenHidden = options.active_when_hidden ~= false,
+    }
+    library._bindings[binding] = true
+    scope:cleanup(function() library._bindings[binding] = nil end)
+    local shortKeys = { RightControl = "RightCtrl", LeftControl = "LeftCtrl", RightShift = "RShift",
+        LeftShift = "LShift", MouseButton1 = "Mouse1", MouseButton2 = "Mouse2", MouseButton3 = "Mouse3" }
+    local function render()
+        button.Text = shortKeys[binding.key.Name] or binding.key.Name
+    end
+    function data:SetKeybind(key)
+        key = validKey(key)
+        if not key or scope._dead then return false end
+        if library._capture and library._capture.owner == root then cancelCapture() end
+        binding.key = key
+        render()
+        return true
+    end
+    function data:Get() return binding.key end
+    scope:on(button.Activated, function()
+        cancelCapture()
+        closePopup()
+        button.Text = "Press a key"
+        library._capture = {
+            owner = root, window = window, allowMouse = options.allow_mouse ~= false,
+            complete = function(key) binding.key = key; render() end,
+            cancel = render,
+        }
+    end)
+    paint(window, scope, function(t) button.BackgroundColor3 = t.pale; button.TextColor3 = t.accent end)
+    render()
+    -- The old implementation accidentally returned an EnumItem as its second value.
+    -- This returns the actual GUI instance, matching the other control factories.
+    return data, root
+end
+
+function Container:AddDropdown(text, callback, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local root, scope = card(self, "Dropdown", 60, "TextButton")
+    root.Text = tostring(text or "New Dropdown")
+    root.TextTransparency = 1
+    local title = label(root, root.Text, UDim2.new(0, 16, 0, 8), UDim2.new(1, -58, 0, 20))
+    title.Name = "Title"
+    local selectedLabel = label(root, "Choose an option", UDim2.new(0, 16, 0, 31),
+        UDim2.new(1, -58, 0, 18), window._theme.muted, 11)
+    selectedLabel.Name = "Value"
+    local arrow, recolor = icon(root, "chevron", window._theme.accent, UDim2.new(1, -34, 0.5, -9), 18)
+    arrow.Rotation = 90
+    local storage = make("Frame", root, { Name = "Options", Visible = false, BackgroundTransparency = 1 })
+    local record = register(self, root, scope, function() return title.Text .. " " .. selectedLabel.Text end)
+    local data = handle(context, root, scope, record)
+    local entries, selected, opened, mutating = {}, nil, false, false
+    local rebuild
+    local function render()
+        selectedLabel.Text = selected and selected.button.Text or "Choose an option"
+        selectedLabel.TextColor3 = selected and window._theme.accent or window._theme.muted
+        recolor(window._theme.accent)
+        animate(window, arrow, { Rotation = opened and -90 or 90 })
+    end
+    local function selectEntry(entry, silent)
+        selected = entry
+        render()
+        closePopup()
+        if not silent and selected then call(callback, selected.button.Text) end
+        deferSearch(window)
+    end
+    local function popupOwnsThis()
+        return library._popup and library._popup.owner == root
+    end
+    rebuild = function()
+        if scope._dead or window._dead or not root.Parent then return end
+        closePopup()
+        local scale = window._scale or 1
+        local available = viewport()
+        local rowHeight, gap = 34 * scale, 4 * scale
+        local visibleCount = 0
+        for _, entry in ipairs(entries) do if entry.button.Visible then visibleCount = visibleCount + 1 end end
+        local height = math.min(math.max(visibleCount, 1), numeric(options.max_visible, 6))
+            * (rowHeight + gap) + 16 * scale
+        height = math.max(32 * scale, math.min(height, available.Y - 24))
+        local width = math.min(root.AbsoluteSize.X, available.X - 24)
+        local x = math.clamp(root.AbsolutePosition.X, 12, math.max(12, available.X - width - 12))
+        local y = root.AbsolutePosition.Y + root.AbsoluteSize.Y + 6 * scale
+        if y + height > available.Y - 12 then y = root.AbsolutePosition.Y - height - 6 * scale end
+        y = math.clamp(y, 12, math.max(12, available.Y - height - 12))
+        local layer = make("Frame", library._gui, {
+            Name = "DropdownOverlay", BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 1, 0), ZIndex = 2000,
+        })
+        local blocker = make("TextButton", layer, {
+            Name = "Dismiss", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, 0), ZIndex = 2001,
+        })
+        local menu = make("Frame", layer, {
+            Name = "Menu", Position = UDim2.new(0, x, 0, y), Size = UDim2.new(0, width, 0, height),
+            BackgroundColor3 = window._theme.surface, ZIndex = 2002,
+        })
+        corner(menu, 12 * scale)
+        stroke(menu, window._theme.border)
+        local list = make("ScrollingFrame", menu, {
+            Name = "Items", Position = UDim2.new(0, 7 * scale, 0, 7 * scale),
+            Size = UDim2.new(1, -14 * scale, 1, -14 * scale),
+            BackgroundTransparency = 1, CanvasSize = UDim2.new(),
+            AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y,
+            ScrollBarThickness = math.max(2, 3 * scale),
+            ScrollBarImageColor3 = window._theme.accent, ZIndex = 2003,
+        })
+        make("UIListLayout", list, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, gap) })
+        if visibleCount == 0 then
+            local empty = label(list, "No options added", nil, UDim2.new(1, 0, 0, rowHeight),
+                window._theme.muted, 12 * scale)
+            empty.ZIndex = 2004
+        end
+        for index, entry in ipairs(entries) do
+            local button = entry.button
+            button.Parent = list
+            button.Size = UDim2.new(1, -5 * scale, 0, rowHeight)
+            button.LayoutOrder = index
+            button.ZIndex = 2004
+            button.TextSize = 12 * scale
+            button.BackgroundColor3 = entry == selected and window._theme.pale or window._theme.surface
+            button.TextColor3 = entry == selected and window._theme.accent or window._theme.text
+            local inset = button:FindFirstChildOfClass("UIPadding")
+            inset.PaddingLeft = UDim.new(0, 10 * scale)
+            inset.PaddingRight = UDim.new(0, 10 * scale)
+        end
+        opened = true
+        library._popup = {
+            owner = root, window = window, layer = layer,
+            close = function()
+                opened = false
+                for _, entry in ipairs(entries) do
+                    if entry.button.Parent then entry.button.Parent = storage end
+                end
+                render()
+            end,
+        }
+        -- Overlay connections are owned by the overlay and die with it.
+        blocker.Activated:Connect(closePopup)
+        render()
+    end
+    function data:Add(name)
+        if scope._dead then return nil, nil end
+        local button = make("TextButton", storage, {
+            Name = "Option", Text = tostring(name or "New Object"), Size = UDim2.new(1, 0, 0, 34),
+            TextSize = 12, TextColor3 = window._theme.text, BackgroundColor3 = window._theme.surface,
+            TextXAlignment = Enum.TextXAlignment.Left, TextTruncate = Enum.TextTruncate.AtEnd,
+        })
+        corner(button, 8)
+        padding(button, 10, 0)
+        local itemScope = newScope(window, button)
+        local entry = { button = button, scope = itemScope }
+        table.insert(entries, entry)
+        itemScope:on(button.Activated, function()
+            if popupOwnsThis() then selectEntry(entry, false) end
+        end)
+        itemScope:on(button.MouseEnter, function()
+            button.BackgroundColor3 = window._theme.pale
+            button.TextColor3 = window._theme.accent
+        end)
+        itemScope:on(button.MouseLeave, function()
+            button.BackgroundColor3 = selected == entry and window._theme.pale or window._theme.surface
+            button.TextColor3 = selected == entry and window._theme.accent or window._theme.text
+        end)
+        itemScope:on(button:GetPropertyChangedSignal("Text"), function() render(); deferSearch(window) end)
+        itemScope:cleanup(function()
+            for index, candidate in ipairs(entries) do
+                if candidate == entry then table.remove(entries, index); break end
+            end
+            if selected == entry then selected = nil; render() end
+            if popupOwnsThis() and not mutating and not scope._dead then
+                task.defer(function() if popupOwnsThis() and not scope._dead then rebuild() end end)
+            end
+        end)
+        local itemData = { Instance = button }
+        function itemData:Remove() button:Destroy() end
+        itemData.Destroy = itemData.Remove
+        if popupOwnsThis() and not mutating then rebuild() end
+        return button, itemData
+    end
+    function data:Set(value, silent)
+        if scope._dead then return false end
+        for _, entry in ipairs(entries) do
+            if entry.button.Text == tostring(value) then selectEntry(entry, silent); return true end
+        end
+        return false
+    end
+    function data:Get() return selected and selected.button.Text or nil end
+    function data:Clear()
+        mutating = true
+        closePopup()
+        local snapshot = {}
+        for _, entry in ipairs(entries) do table.insert(snapshot, entry) end
+        for _, entry in ipairs(snapshot) do entry.button:Destroy() end
+        mutating = false
+        selected = nil
+        render()
+    end
+    function data:Open() if not scope._dead then rebuild() end end
+    function data:Close() if popupOwnsThis() then closePopup() end end
+    scope:on(root.Activated, function() if opened then data:Close() else data:Open() end end)
+    scope:on(root:GetPropertyChangedSignal("Text"), function() title.Text = root.Text; deferSearch(window) end)
+    scope:cleanup(function()
+        -- Options can temporarily be outside the dropdown, inside an overlay.
+        mutating = true
+        local snapshot = {}
+        for _, entry in ipairs(entries) do table.insert(snapshot, entry) end
+        for _, entry in ipairs(snapshot) do if entry.button.Parent then entry.button:Destroy() end end
+    end)
+    paint(window, scope, render)
+    for _, value in ipairs(options.items or {}) do data:Add(value) end
+    if options.default ~= nil then data:Set(options.default, options.silent_default == true) end
+    return data, root
+end
+
+local function hexColor(color)
+    return string.format("#%02X%02X%02X", math.floor(color.R * 255 + 0.5),
+        math.floor(color.G * 255 + 0.5), math.floor(color.B * 255 + 0.5))
+end
+
+function Container:AddColorPicker(callback, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local root, scope = card(self, "ColorPicker", 208)
+    local title = label(root, options.title or "Color picker", UDim2.new(0, 16, 0, 12), UDim2.new(1, -145, 0, 22))
+    title.Name = "Title"
+    local sample = make("Frame", root, { Name = "Sample", Position = UDim2.new(1, -120, 0, 14),
+        Size = UDim2.new(0, 22, 0, 22), BackgroundColor3 = window._theme.accent })
+    corner(sample, 6)
+    local hex = make("TextBox", root, {
+        Name = "Hex", Position = UDim2.new(1, -91, 0, 12), Size = UDim2.new(0, 77, 0, 26),
+        BackgroundTransparency = 1, Font = Enum.Font.Code, TextSize = 12,
+        TextColor3 = window._theme.muted, ClearTextOnFocus = false,
+    })
+    local palette = make("Frame", root, {
+        Name = "Palette", Position = UDim2.new(0, 16, 0, 52), Size = UDim2.new(1, -66, 0, 138), Active = true,
+    })
+    corner(palette, 8)
+    local whiteOverlay = make("Frame", palette, { Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = WHITE })
+    corner(whiteOverlay, 8)
+    make("UIGradient", whiteOverlay, {
+        Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1) }),
+    })
+    local blackOverlay = make("Frame", palette, {
+        Size = UDim2.new(1, 0, 1, 0), BackgroundColor3 = Color3.new(0, 0, 0),
+    })
+    corner(blackOverlay, 8)
+    make("UIGradient", blackOverlay, {
+        Rotation = 90,
+        Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 1), NumberSequenceKeypoint.new(1, 0) }),
+    })
+    local selection = make("Frame", palette, {
+        Name = "Indicator", AnchorPoint = Vector2.new(0.5, 0.5),
+        Size = UDim2.new(0, 10, 0, 10), BackgroundTransparency = 1, ZIndex = blackOverlay.ZIndex + 1,
+    })
+    corner(selection, 20); stroke(selection, WHITE, 0, 2)
+    local hue = make("Frame", root, {
+        Name = "Hue", Position = UDim2.new(1, -34, 0, 52), Size = UDim2.new(0, 18, 0, 138),
+        BackgroundColor3 = WHITE, Active = true,
+    })
+    corner(hue, 8)
+    local huePoints = {}
+    for i = 0, 6 do table.insert(huePoints, ColorSequenceKeypoint.new(i / 6, Color3.fromHSV(i / 6, 1, 1))) end
+    make("UIGradient", hue, { Color = ColorSequence.new(huePoints), Rotation = 90 })
+    local hueMarker = make("Frame", hue, { Name = "Indicator", AnchorPoint = Vector2.new(0, 0.5),
+        Position = UDim2.new(0, -2, 0, 0), Size = UDim2.new(1, 4, 0, 4), BackgroundColor3 = WHITE })
+    corner(hueMarker, 3)
+    local record = register(self, root, scope, function() return title.Text end)
+    local data = handle(context, root, scope, record)
+    local h, s, v = 0, 1, 1
+    local current = typeof(options.default) == "Color3" and options.default or window._theme.accent
+    h, s, v = current:ToHSV()
+    local function render()
+        current = Color3.fromHSV(h, s, v)
+        palette.BackgroundColor3 = Color3.fromHSV(h, 1, 1)
+        sample.BackgroundColor3 = current
+        selection.Position = UDim2.new(s, 0, 1 - v, 0)
+        hueMarker.Position = UDim2.new(0, -2, h, 0)
+        hex.Text = hexColor(current)
+    end
+    function data:Set(color, silent)
+        if scope._dead then return end
+        color = typeof(color) == "Color3" and color or WHITE
+        h, s, v = color:ToHSV()
+        render()
+        if not silent then call(callback, current) end
+    end
+    function data:Get() return current end
+    local function dragPalette(point)
+        if palette.AbsoluteSize.X <= 0 or palette.AbsoluteSize.Y <= 0 then return end
+        s = math.clamp((point.X - palette.AbsolutePosition.X) / palette.AbsoluteSize.X, 0, 1)
+        v = 1 - math.clamp((point.Y - palette.AbsolutePosition.Y) / palette.AbsoluteSize.Y, 0, 1)
+        render()
+        call(callback, current)
+    end
+    scope:on(palette.InputBegan, function(input) startPointer(window, root, input, dragPalette) end)
+    scope:on(hue.InputBegan, function(input)
+        startPointer(window, root, input, function(point)
+            if hue.AbsoluteSize.Y <= 0 then return end
+            h = math.clamp((point.Y - hue.AbsolutePosition.Y) / hue.AbsoluteSize.Y, 0, 1)
+            render()
+            call(callback, current)
+        end)
+    end)
+    scope:on(hex.FocusLost, function()
+        local value = hex.Text:match("^%s*#?(%x%x%x%x%x%x)%s*$")
+        if value then
+            data:Set(Color3.fromRGB(tonumber(value:sub(1, 2), 16), tonumber(value:sub(3, 4), 16),
+                tonumber(value:sub(5, 6), 16)))
+        else render() end
+    end)
+    render()
+    return data, root
+end
+
+local function xml(text)
+    return text:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;")
+end
+
+local KEYWORDS = {}
+for word in ("and break continue do else elseif end export false for function if in local nil not or repeat return then true type until while"):gmatch("%S+") do
+    KEYWORDS[word] = true
+end
+
+local function highlightLua(source)
+    local result, index, length = {}, 1, #source
+    local function token(text, color)
+        table.insert(result, color and ('<font color="' .. color .. '">' .. xml(text) .. "</font>") or xml(text))
+    end
+    while index <= length do
+        local rest, color = source:sub(index), nil
+        local chunk
+        if rest:sub(1, 2) == "--" then
+            local equals = rest:match("^%-%-%[(=*)%[")
+            if equals then
+                local closing = "]" .. equals .. "]"
+                local finish = rest:find(closing, 5 + #equals, true)
+                chunk = finish and rest:sub(1, finish + #closing - 1) or rest
+            else chunk = rest:match("^[^\n]*") end
+            color = "#91889F"
+        elseif rest:sub(1, 1) == '"' or rest:sub(1, 1) == "'" then
+            local quote, finish = rest:sub(1, 1), 2
+            while finish <= #rest do
+                if rest:sub(finish, finish) == "\\" then finish = finish + 2
+                elseif rest:sub(finish, finish) == quote then finish = finish + 1; break
+                else finish = finish + 1 end
+            end
+            chunk, color = rest:sub(1, finish - 1), "#429F85"
+        elseif rest:match("^[%a_]") then
+            chunk = rest:match("^[%w_]+")
+            if KEYWORDS[chunk] then color = "#9475DA" end
+        elseif rest:match("^%d") then
+            chunk, color = rest:match("^0[xX][%da-fA-F]+") or rest:match("^%d+%.?%d*"), "#C69653"
+        else chunk = rest:sub(1, 1) end
+        token(chunk, color)
+        index = index + #chunk
+    end
+    return table.concat(result)
+end
+
+function Container:AddConsole(options)
+    options = type(options) == "table" and options or { readonly = true }
+    local context, window = self, self._window
+    local height = math.max(100, numeric(options.y, 200))
+    local root, scope = card(self, "Console", height)
+    root.BackgroundColor3 = Color3.fromRGB(33, 28, 46)
+    local title = label(root, options.source == "Lua" and "Lua source" or "Console",
+        UDim2.new(0, 14, 0, 10), UDim2.new(1, -120, 0, 20), Color3.fromRGB(231, 224, 245), 12)
+    title.Name = "Title"
+    local mode = label(root, options.readonly == true and "READ ONLY" or "EDITABLE",
+        UDim2.new(1, -101, 0, 10), UDim2.new(0, 87, 0, 20), Color3.fromRGB(151, 137, 182), 9)
+    mode.TextXAlignment = Enum.TextXAlignment.Right
+    local sf = make("ScrollingFrame", root, {
+        Name = "ScrollingFrame", Position = UDim2.new(0, 12, 0, 39), Size = UDim2.new(1, -24, 1, -51),
+        BackgroundTransparency = 1, CanvasSize = UDim2.new(), ScrollBarThickness = 3,
+        ScrollBarImageColor3 = Color3.fromRGB(103, 84, 141),
+    })
+    local luaMode = options.source == "Lua"
+    local source = make("TextBox", sf, {
+        Name = "Source", Position = UDim2.new(0, luaMode and 34 or 0, 0, 0),
+        Size = UDim2.new(1, luaMode and -38 or -4, 0, 18),
+        BackgroundTransparency = 1, Text = "", Font = Enum.Font.Code, TextSize = 12,
+        TextColor3 = Color3.fromRGB(218, 210, 235),
+        TextXAlignment = Enum.TextXAlignment.Left, TextYAlignment = Enum.TextYAlignment.Top,
+        MultiLine = true, ClearTextOnFocus = false, TextWrapped = false, TextEditable = options.readonly ~= true,
+    })
+    local lines = label(sf, "1", nil, UDim2.new(0, 25, 0, 18), Color3.fromRGB(120, 107, 147), 12, Enum.Font.Code)
+    lines.Name = "Lines"
+    lines.Visible = luaMode
+    lines.TextTruncate = Enum.TextTruncate.None
+    lines.TextYAlignment = Enum.TextYAlignment.Top
+    lines.TextXAlignment = Enum.TextXAlignment.Right
+    local highlighted = label(source, "", nil, UDim2.new(1, 0, 1, 0), source.TextColor3, 12, Enum.Font.Code)
+    highlighted.Name = "Highlight"
+    highlighted.RichText = true
+    highlighted.TextTruncate = Enum.TextTruncate.None
+    highlighted.TextYAlignment = Enum.TextYAlignment.Top
+    highlighted.Visible = luaMode and options.readonly == true
+    if highlighted.Visible then source.TextTransparency = 1 end
+    local record = register(self, root, scope, function() return title.Text end)
+    local data = handle(context, root, scope, record)
+    local function fit()
+        if scope._dead then return end
+        local count, longest = 1, 0
+        for line in (source.Text .. "\n"):gmatch("(.-)\n") do
+            longest = math.max(longest, #line)
+            count = count + 1
+        end
+        count = math.max(1, count - 1)
+        local numbers = {}
+        for i = 1, count do table.insert(numbers, tostring(i)) end
+        lines.Text = table.concat(numbers, "\n")
+        local extent = TextService:GetTextSize(source.Text == "" and " " or source.Text,
+            12, Enum.Font.Code, Vector2.new(1000000, 1000000))
+        local contentHeight = math.max(18, extent.Y + 5)
+        source.Size = UDim2.new(1, luaMode and -38 or -4, 0, contentHeight)
+        local horizontalExtra = math.max(0, extent.X + 8 - source.AbsoluteSize.X / window._scale)
+        if horizontalExtra > 0 then source.Size = UDim2.new(1, horizontalExtra, 0, contentHeight) end
+        lines.Size = UDim2.new(0, 25, 0, contentHeight)
+        sf.CanvasSize = UDim2.new(0, extent.X + (luaMode and 42 or 8), 0, contentHeight)
+        if highlighted.Visible then highlighted.Text = highlightLua(source.Text) end
+    end
+    function data:Set(code) if not scope._dead then source.Text = tostring(code or "") end end
+    function data:Get() return source.Text end
+    function data:Log(message)
+        if scope._dead then return end
+        local combined = source.Text .. "[*] " .. tostring(message) .. "\n"
+        local limit = math.max(1, math.floor(numeric(options.max_lines, 500)))
+        local list = {}
+        for line in combined:gmatch("([^\n]*)\n") do table.insert(list, line) end
+        if #list > limit then
+            local tail = {}
+            for i = #list - limit + 1, #list do table.insert(tail, list[i]) end
+            combined = table.concat(tail, "\n") .. "\n"
+        end
+        source.Text = combined
+        task.defer(function()
+            if not scope._dead then
+                sf.CanvasPosition = Vector2.new(0, math.max(0,
+                    sf.CanvasSize.Y.Offset * window._scale - sf.AbsoluteSize.Y))
+            end
+        end)
+    end
+    function data:Clear() data:Set("") end
+    scope:on(source:GetPropertyChangedSignal("Text"), fit)
+    scope:on(sf:GetPropertyChangedSignal("AbsoluteSize"), fit)
+    if options.full == true then
+        local function fitFull()
+            root.Size = UDim2.new(1, 0, 0, math.max(height, context._content.AbsoluteSize.Y / window._scale - 16))
+        end
+        scope:on(context._content:GetPropertyChangedSignal("AbsoluteSize"), fitFull)
+        fitFull()
+    end
+    data.Source = source
+    fit()
+    return data, root
+end
+
+function Container:AddHorizontalAlignment()
+    local context, window = self, self._window
+    local root = make("Frame", self._content, {
+        Name = "HorizontalAlignment", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 42),
+        LayoutOrder = nextOrder(self),
+    })
+    local scope = newScope(window, root)
+    make("UIListLayout", root, {
+        FillDirection = Enum.FillDirection.Horizontal, SortOrder = Enum.SortOrder.LayoutOrder,
+        Padding = UDim.new(0, 8),
+    })
+    local data = setmetatable({
+        _window = window, _content = root, _records = {}, _order = 0, _horizontal = true, Instance = root,
+    }, Container)
+    local record = register(self, root, scope, function() return "" end, data)
+    local function fit()
+        local buttons = {}
+        for _, child in ipairs(root:GetChildren()) do
+            if child:IsA("GuiButton") and child.Visible then table.insert(buttons, child) end
+        end
+        local count = #buttons
+        for _, button in ipairs(buttons) do button.Size = UDim2.new(1 / count, -8 * (count - 1) / count, 0, 42) end
+    end
+    scope:on(root.ChildAdded, function(child)
+        if child:IsA("GuiButton") then
+            scope:on(child:GetPropertyChangedSignal("Visible"), fit)
+            fit()
+        end
+    end)
+    scope:on(root.ChildRemoved, fit)
+    function data:Destroy() root:Destroy() end
+    function data:SetVisible(visible) record.visible = visible == true; refreshSearch(window) end
+    -- This factory is intended for AddButton, as in the original API.
+    return data, root
+end
+
+function Container:AddFolder(text, options)
+    options = type(options) == "table" and options or {}
+    local context, window = self, self._window
+    local root, scope = card(self, "Folder", 50)
+    local header = make("TextButton", root, {
+        Name = "Button", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 0, 50),
+    })
+    local title = label(header, text or "New Folder", UDim2.new(0, 16, 0, 14), UDim2.new(1, -58, 0, 22),
+        window._theme.accent, 13, Enum.Font.GothamSemibold)
+    title.Name = "Title"
+    local arrow, recolor = icon(header, "chevron", window._theme.accent, UDim2.new(1, -34, 0, 16), 18)
+    local content = make("Frame", root, {
+        Name = "Objects", BackgroundTransparency = 1,
+        Position = UDim2.new(0, 12, 0, 54), Size = UDim2.new(1, -24, 0, 0), Visible = false,
+    })
+    local layout = make("UIListLayout", content, {
+        SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 8),
+    })
+    local data = setmetatable({
+        _window = window, _content = content, _records = {}, _order = 0, Instance = root,
+    }, Container)
+    local userOpen, searchOpen = options.open == true, false
+    local function render()
+        if scope._dead then return end
+        local open = userOpen or searchOpen or options.collapsible == false
+        local length = layout.AbsoluteContentSize.Y / math.max(0.01, window._scale)
+        content.Visible = open
+        content.Size = UDim2.new(1, -24, 0, length)
+        root.Size = UDim2.new(1, 0, 0, open and length + 68 or 50)
+        arrow.Visible = options.collapsible ~= false
+        animate(window, arrow, { Rotation = open and 90 or 0 })
+    end
+    local record = register(self, root, scope, function() return title.Text end, data,
+        function(value) searchOpen = value; render() end)
+    function data:SetOpen(open) userOpen = open == true; render() end
+    function data:GetOpen() return userOpen end
+    function data:Destroy() root:Destroy() end
+    function data:SetVisible(visible) record.visible = visible == true; refreshSearch(window) end
+    function data:SetText(value) title.Text = tostring(value or ""); deferSearch(window) end
+    scope:on(header.Activated, function()
+        if options.collapsible ~= false then userOpen = not userOpen; render() end
+    end)
+    scope:on(layout:GetPropertyChangedSignal("AbsoluteContentSize"), render)
+    window._layoutCallbacks[render] = true
+    scope:cleanup(function() window._layoutCallbacks[render] = nil end)
+    paint(window, scope, function(t) title.TextColor3 = t.accent; recolor(t.accent) end)
+    render()
+    return data, root
+end
+
+function Container:AddSection(text)
+    return self:AddFolder(text, { open = true, collapsible = false })
+end
+
+disposeWindow = function(window, destroyInstance)
+    if window._dead then return end
+    window._dead = true
+    if library._pointer and library._pointer.window == window then cancelPointer() end
+    if library._capture and library._capture.window == window then cancelCapture() end
+    if library._popup and library._popup.window == window then closePopup() end
+    local scopes = {}
+    for scope in pairs(window._scopes) do table.insert(scopes, scope) end
+    for _, scope in ipairs(scopes) do scope:Destroy() end
+    for _, entry in pairs(window._tweens) do entry.stop() end
+    window._paints, window._layoutCallbacks = {}, {}
+    if window._bubble and window._bubble.Parent then window._bubble:Destroy() end
+    if destroyInstance and window.Instance then window.Instance:Destroy() end
+    for index, candidate in ipairs(library._windows) do
+        if candidate == window then table.remove(library._windows, index); break end
+    end
+end
+
+function library:AddWindow(title, options)
+    options = type(options) == "table" and options or {}
+    ensureGui(options.parent)
+    local accent = typeof(options.main_color) == "Color3" and options.main_color or DEFAULT_ACCENT
+    local requestedMinimum = typeof(options.min_size) == "Vector2" and options.min_size or Vector2.new(500, 380)
+    local minimum = Vector2.new(math.max(360, requestedMinimum.X), math.max(300, requestedMinimum.Y))
+    local requested = typeof(options.size) == "Vector2" and options.size or
+        (typeof(options.min_size) == "Vector2" and options.min_size or Vector2.new(980, 660))
+    local available = viewport()
+    local size = Vector2.new(math.max(minimum.X, math.min(requested.X, available.X - 32)),
+        math.max(minimum.Y, math.min(requested.Y, available.Y - 32)))
+    local window = {
+        _theme = theme(accent), _scopes = {}, _paints = {}, _layoutCallbacks = {},
+        _tweens = setmetatable({}, { __mode = "k" }), _tabs = {}, _visible = true, _dead = false,
+        _size = size, _minimum = minimum, _scale = 1,
+        _options = {
+            toggle_key = validKey(options.toggle_key) or Enum.KeyCode.RightShift,
+            can_resize = options.can_resize ~= false,
+            tween_time = math.clamp(numeric(options.tween_time, 0.16), 0, 1),
+            show_profile = options.show_profile ~= false,
+            show_intro = options.show_intro ~= false,
+        },
+    }
+    library._serial = (library._serial or 0) + 1
+    local z = 10 + ((library._serial - 1) % 20) * 30
+    local root = make("Frame", library._gui, {
+        Name = "Window", Size = UDim2.new(0, size.X, 0, size.Y),
+        BackgroundColor3 = window._theme.background, Active = true, ZIndex = z,
+    })
+    window.Instance = root
+    table.insert(library._windows, window)
+    corner(root, 16); stroke(root, window._theme.border)
+    local rootScope = newScope(window, root)
+    rootScope:cleanup(function() if not window._dead then disposeWindow(window, false) end end)
+    local scaleObject = make("UIScale", root, { Scale = 1 })
+    window._uiScale = scaleObject
+    local shadow = make("Frame", root, {
+        Name = "Shadow", Position = UDim2.new(0, 4, 0, 8), Size = UDim2.new(1, 0, 1, 0),
+        BackgroundColor3 = Color3.fromRGB(75, 48, 124), BackgroundTransparency = 0.94, ZIndex = z - 1,
+    })
+    corner(shadow, 18)
+    local top = make("Frame", root, {
+        Name = "TopBar", Size = UDim2.new(1, 0, 0, 48), BackgroundColor3 = window._theme.header,
+    })
+    corner(top, 16)
+    make("Frame", top, {
+        Name = "SquareBottom", Position = UDim2.new(0, 0, 0, 24),
+        Size = UDim2.new(1, 0, 0, 24), BackgroundColor3 = window._theme.header,
+    })
+    local dragArea = make("TextButton", top, {
+        Name = "DragArea", BackgroundTransparency = 1, Size = UDim2.new(1, -88, 1, 0), Active = true,
+    })
+    local mark = make("Frame", top, {
+        Name = "Mark", Position = UDim2.new(0, 16, 0, 12), Size = UDim2.new(0, 24, 0, 24),
+        BackgroundColor3 = WHITE, BackgroundTransparency = 0.86, ZIndex = top.ZIndex + 2,
+    })
+    corner(mark, 7)
+    icon(mark, "grid", WHITE, UDim2.new(0, 5, 0, 5), 14)
+    local titleLabel = label(top, title or "Lumen UI", UDim2.new(0, 52, 0, 12),
+        UDim2.new(1, -156, 0, 24), WHITE, 14, Enum.Font.GothamSemibold)
+    titleLabel.Name = "Title"
+    titleLabel.ZIndex = top.ZIndex + 2
+    local function topButton(name, x)
+        local button = make("TextButton", top, {
+            Name = name, Position = UDim2.new(1, x, 0, 10), Size = UDim2.new(0, 28, 0, 28),
+            BackgroundColor3 = WHITE, BackgroundTransparency = 1, ZIndex = top.ZIndex + 2,
+        })
+        corner(button, 8)
+        icon(button, name, WHITE, UDim2.new(0, 5, 0, 5), 18)
+        rootScope:on(button.MouseEnter, function() animate(window, button, { BackgroundTransparency = 0.87 }) end)
+        rootScope:on(button.MouseLeave, function() animate(window, button, { BackgroundTransparency = 1 }) end)
+        return button
+    end
+    local minimize = topButton("minus", -76)
+    local close = topButton("close", -40)
+    local body = make("Frame", root, {
+        Name = "Body", Position = UDim2.new(0, 0, 0, 48), Size = UDim2.new(1, 0, 1, -48),
+        BackgroundTransparency = 1,
+    })
+    local sidebar = make("Frame", body, {
+        Name = "Sidebar", Size = UDim2.new(0, 176, 1, -8), BackgroundColor3 = window._theme.surface,
+    })
+    local sideLine = make("Frame", sidebar, { Name = "Divider", Position = UDim2.new(1, -1, 0, 0),
+        Size = UDim2.new(0, 1, 1, 0), BackgroundColor3 = window._theme.border })
+    local sideCaption = label(sidebar, "WORKSPACE", UDim2.new(0, 20, 0, 24),
+        UDim2.new(1, -40, 0, 16), window._theme.muted, 9, Enum.Font.GothamSemibold)
+    local searchBox = make("Frame", sidebar, {
+        Name = "Search", Position = UDim2.new(0, 14, 0, 53), Size = UDim2.new(1, -28, 0, 36),
+        BackgroundColor3 = window._theme.background,
+    })
+    corner(searchBox, 9); stroke(searchBox, window._theme.border)
+    local _, searchColor = icon(searchBox, "search", window._theme.muted, UDim2.new(0, 9, 0, 10), 16)
+    local search = make("TextBox", searchBox, {
+        Name = "Query", Position = UDim2.new(0, 33, 0, 0), Size = UDim2.new(1, -38, 1, 0),
+        BackgroundTransparency = 1, Font = Enum.Font.GothamMedium, TextSize = 11,
+        TextColor3 = window._theme.text, PlaceholderColor3 = window._theme.muted,
+        PlaceholderText = "Search", Text = "", ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left,
+    })
+    window._search = search
+    local nav = make("ScrollingFrame", sidebar, {
+        Name = "TabButtons", Position = UDim2.new(0, 12, 0, 111), Size = UDim2.new(1, -24, 1, -172),
+        BackgroundTransparency = 1, ScrollBarThickness = 0, CanvasSize = UDim2.new(),
+        AutomaticCanvasSize = Enum.AutomaticSize.Y, ScrollingDirection = Enum.ScrollingDirection.Y,
+    })
+    make("UIListLayout", nav, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 6) })
+    label(sidebar, "LUMEN  /  2.0", UDim2.new(0, 20, 1, -33), UDim2.new(1, -40, 0, 18),
+        window._theme.muted, 9, Enum.Font.GothamSemibold)
+    local center = make("Frame", body, { Name = "Workspace", BackgroundTransparency = 1 })
+    local heading = label(center, "Welcome", nil, UDim2.new(1, -90, 0, 31), window._theme.text, 23, Enum.Font.GothamBold)
+    heading.Name = "Heading"
+    local description = label(center, "Build your workspace, your way.", UDim2.new(0, 0, 0, 36),
+        UDim2.new(1, 0, 0, 20), window._theme.muted, 12)
+    local badge = make("Frame", center, { Name = "Badge", Position = UDim2.new(1, -76, 0, 2),
+        Size = UDim2.new(0, 76, 0, 26), BackgroundColor3 = window._theme.pale })
+    corner(badge, 20)
+    local badgeText = label(badge, "CONTROLS", nil, UDim2.new(1, 0, 1, 0), window._theme.accent, 8, Enum.Font.GothamSemibold)
+    badgeText.TextXAlignment = Enum.TextXAlignment.Center
+    local hero = make("Frame", center, {
+        Name = "Intro", Position = UDim2.new(0, 0, 0, 72), Size = UDim2.new(1, 0, 0, 104),
+        BackgroundColor3 = window._theme.pale, ClipsDescendants = true,
+    })
+    corner(hero, 14)
+    local heroKicker = label(hero, "A LITTLE MORE CLARITY", UDim2.new(0, 20, 0, 16),
+        UDim2.new(1, -125, 0, 16), window._theme.accent, 9, Enum.Font.GothamSemibold)
+    local heroTitle = label(hero, "Your workspace", UDim2.new(0, 20, 0, 39),
+        UDim2.new(1, -125, 0, 26), window._theme.text, 20, Enum.Font.GothamBold)
+    local heroDetail = label(hero, "Simple controls. A smoother flow.", UDim2.new(0, 20, 0, 73),
+        UDim2.new(1, -125, 0, 16), window._theme.muted, 11)
+    local art = make("Frame", hero, { Name = "Illustration", Position = UDim2.new(1, -94, 0, 24),
+        Size = UDim2.new(0, 62, 0, 62), BackgroundColor3 = window._theme.accent, Rotation = -10 })
+    corner(art, 16)
+    icon(art, "grid", WHITE, UDim2.new(0, 15, 0, 15), 32)
+    local pages = make("Frame", center, { Name = "Pages", BackgroundTransparency = 1 })
+    local right = make("Frame", body, { Name = "RightPanel", BackgroundTransparency = 1 })
+    local profile = make("Frame", right, { Name = "ProfileCard", Size = UDim2.new(1, 0, 0, 226),
+        BackgroundColor3 = window._theme.surface })
+    corner(profile, 14); stroke(profile, window._theme.border)
+    label(profile, "PLAYER PROFILE", UDim2.new(0, 16, 0, 16), UDim2.new(1, -32, 0, 18),
+        window._theme.muted, 9, Enum.Font.GothamSemibold)
+    local player = Players.LocalPlayer
+    local avatar = make("ImageLabel", profile, {
+        Name = "Avatar", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 46),
+        Size = UDim2.new(0, 68, 0, 68), BackgroundColor3 = window._theme.pale,
+        Image = player and ("rbxthumb://type=AvatarHeadShot&id=" .. tostring(player.UserId) .. "&w=150&h=150") or "",
+    })
+    corner(avatar, 40); stroke(avatar, window._theme.border)
+    local displayName = label(profile, player and player.DisplayName or "Player", UDim2.new(0, 14, 0, 127),
+        UDim2.new(1, -28, 0, 22), window._theme.text, 14, Enum.Font.GothamSemibold)
+    displayName.TextXAlignment = Enum.TextXAlignment.Center
+    local username = label(profile, player and ("@" .. player.Name) or "@player",
+        UDim2.new(0, 14, 0, 151), UDim2.new(1, -28, 0, 18), window._theme.muted, 11)
+    username.TextXAlignment = Enum.TextXAlignment.Center
+    local status = make("Frame", profile, {
+        Name = "Status", AnchorPoint = Vector2.new(0.5, 0), Position = UDim2.new(0.5, 0, 0, 182),
+        Size = UDim2.new(0, 116, 0, 27), BackgroundColor3 = Color3.fromRGB(235, 247, 241),
+    })
+    corner(status, 20)
+    local dot = make("Frame", status, { Position = UDim2.new(0, 13, 0, 10),
+        Size = UDim2.new(0, 6, 0, 6), BackgroundColor3 = window._theme.green })
+    corner(dot, 8)
+    local statusLabel = label(status, "Connected", UDim2.new(0, 27, 0, 0), UDim2.new(1, -32, 1, 0), window._theme.green, 10)
+    local shortcuts = make("Frame", right, {
+        Name = "QuickAccess", Position = UDim2.new(0, 0, 0, 244), Size = UDim2.new(1, 0, 0, 180),
+        BackgroundColor3 = window._theme.surface,
+    })
+    corner(shortcuts, 14); stroke(shortcuts, window._theme.border)
+    label(shortcuts, "QUICK ACCESS", UDim2.new(0, 16, 0, 16), UDim2.new(1, -32, 0, 18), window._theme.muted, 9,
+        Enum.Font.GothamSemibold)
+    local quickList = make("Frame", shortcuts, { Name = "Links", BackgroundTransparency = 1,
+        Position = UDim2.new(0, 12, 0, 45), Size = UDim2.new(1, -24, 0, 123) })
+    make("UIListLayout", quickList, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 4) })
+    local quickEmpty = label(quickList, "Your tabs will appear here.", nil, UDim2.new(1, 0, 0, 40), window._theme.muted, 11)
+    quickEmpty.TextWrapped = true
+    local keyHint = make("Frame", right, { Name = "KeyHint", BackgroundTransparency = 1,
+        Position = UDim2.new(0, 0, 0, 442), Size = UDim2.new(1, 0, 0, 28) })
+    local _, hintColor = icon(keyHint, "keyboard", window._theme.muted, UDim2.new(0, 9, 0, 4), 20)
+    label(keyHint, window._options.toggle_key.Name .. " to toggle", UDim2.new(0, 38, 0, 0),
+        UDim2.new(1, -38, 1, 0), window._theme.muted, 10)
+    local resize = make("TextButton", root, {
+        Name = "Resizer", BackgroundTransparency = 1, Position = UDim2.new(1, -24, 1, -24),
+        Size = UDim2.new(0, 24, 0, 24), Active = true, Visible = window._options.can_resize,
+    })
+    local _, resizeColor = icon(resize, "resize", window._theme.muted, UDim2.new(0, 3, 0, 3), 18)
+    local bubble = make("TextButton", library._gui, {
+        Name = "RestoreWindow", Size = UDim2.new(0, 48, 0, 48),
+        AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -22 - (#library._windows - 1) * 58, 1, -22),
+        BackgroundColor3 = accent, Visible = false, ZIndex = 1900,
+    })
+    corner(bubble, 16)
+    icon(bubble, "grid", WHITE, UDim2.new(0, 13, 0, 13), 22)
+    window._bubble = bubble
+    local bubbleScope = newScope(window, bubble)
+    local function layout(preservePosition)
+        if window._dead then return end
+        local view = viewport()
+        local base = window._size
+        local scale = math.max(0.05, math.min(1, (view.X - 32) / base.X, (view.Y - 32) / base.Y))
+        window._scale = scale
+        root.Size = UDim2.new(0, base.X, 0, base.Y)
+        scaleObject.Scale = scale
+        local sideWidth = base.X < 760 and 132 or 176
+        local hasRight = window._options.show_profile and base.X >= 900 and view.X >= 900 and base.Y >= 580
+        local hasHero = window._options.show_intro and base.Y >= 550
+        sidebar.Size = UDim2.new(0, sideWidth, 1, -8)
+        right.Visible = hasRight
+        right.Position = UDim2.new(1, -222, 0, 24)
+        right.Size = UDim2.new(0, 198, 1, -48)
+        center.Position = UDim2.new(0, sideWidth + 24, 0, 24)
+        center.Size = UDim2.new(1, -sideWidth - (hasRight and 268 or 48), 1, -48)
+        hero.Visible = hasHero
+        local contentY = hasHero and 192 or 76
+        pages.Position = UDim2.new(0, 0, 0, contentY)
+        pages.Size = UDim2.new(1, 0, 1, -contentY)
+        local centerWidth = base.X - sideWidth - (hasRight and 268 or 48)
+        badge.Visible = centerWidth >= 320
+        heading.Size = UDim2.new(1, badge.Visible and -90 or 0, 0, 31)
+        art.Visible = centerWidth >= 340
+        local textRight = art.Visible and 125 or 40
+        heroKicker.Size = UDim2.new(1, -textRight, 0, 16)
+        heroTitle.Size = UDim2.new(1, -textRight, 0, 26)
+        heroDetail.Size = UDim2.new(1, -textRight, 0, 16)
+        local physicalX, physicalY = base.X * scale, base.Y * scale
+        local position = preservePosition and window._position or nil
+        local x = position and position.X or (view.X - physicalX) / 2
+        local y = position and position.Y or (view.Y - physicalY) / 2
+        x = math.clamp(x, 8, math.max(8, view.X - physicalX - 8))
+        y = math.clamp(y, 8, math.max(8, view.Y - physicalY - 8))
+        window._position = Vector2.new(x, y)
+        root.Position = UDim2.new(0, x, 0, y)
+        for callback in pairs(window._layoutCallbacks) do callback() end
+    end
+    window._layout = layout
+    function window:SetVisible(visible)
+        if self._dead then return end
+        self._visible = visible == true
+        root.Visible = self._visible
+        bubble.Visible = not self._visible
+        if not self._visible then
+            if library._pointer and library._pointer.window == self then cancelPointer() end
+            if library._popup and library._popup.window == self then closePopup() end
+            if library._capture and library._capture.window == self then cancelCapture() end
+        end
+    end
+    function window:Toggle() self:SetVisible(not self._visible) end
+    function window:Destroy() disposeWindow(self, true) end
+    function window:SetTitle(value) if not self._dead then titleLabel.Text = tostring(value or "Lumen UI") end end
+    function window:SetAccent(color)
+        if self._dead or typeof(color) ~= "Color3" then return end
+        self._theme = theme(color)
+        if library._popup and library._popup.window == self then closePopup() end
+        for callback in pairs(self._paints) do callback(self._theme) end
+    end
+    function window:SetSize(value)
+        if self._dead or typeof(value) ~= "Vector2" then return end
+        self._size = Vector2.new(math.max(self._minimum.X, value.X), math.max(self._minimum.Y, value.Y))
+        if library._popup and library._popup.window == self then closePopup() end
+        layout(true)
+    end
+    function window:SetProfile(values)
+        if self._dead or type(values) ~= "table" then return end
+        if values.name then displayName.Text = tostring(values.name) end
+        if values.username then username.Text = tostring(values.username) end
+        if values.status then statusLabel.Text = tostring(values.status) end
+        if values.avatar then avatar.Image = tostring(values.avatar) end
+    end
+    function window:Search(query) if not self._dead then search.Text = tostring(query or "") end end
+    function window:SelectTab(name)
+        for _, tab in ipairs(self._tabs) do if tab.Name == tostring(name) then tab:Show(); return true end end
+        return false
+    end
+    function window:Notify(messageTitle, message, duration)
+        return library:Notify(messageTitle, message, duration, self._theme.accent)
+    end
+    local quickButtons = {}
+    local function updateShortcuts()
+        for _, button in ipairs(quickButtons) do button:Destroy() end
+        quickButtons = {}
+        quickEmpty.Visible = #window._tabs == 0
+        for i = 1, math.min(3, #window._tabs) do
+            local tab = window._tabs[i]
+            local button = make("TextButton", quickList, {
+                Name = "QuickLink", Size = UDim2.new(1, 0, 0, 35), BackgroundTransparency = 1, LayoutOrder = i,
+            })
+            local buttonScope = newScope(window, button)
+            local textLabel = label(button, tab.Name, UDim2.new(0, 31, 0, 0), UDim2.new(1, -55, 1, 0),
+                window._theme.text, 11)
+            local _, setIcon = icon(button, tab._icon, window._theme.accent, UDim2.new(0, 5, 0, 9), 16)
+            local _, setArrow = icon(button, "chevron", window._theme.muted, UDim2.new(1, -18, 0, 11), 13)
+            buttonScope:on(button.Activated, function() tab:Show() end)
+            paint(window, buttonScope, function(t) setIcon(t.accent); setArrow(t.muted); textLabel.TextColor3 = t.text end)
+            table.insert(quickButtons, button)
+        end
+    end
+    local defaultIcons = { "home", "bolt", "bag", "star", "settings" }
+    function window:AddTab(name, tabOptions)
+        assert(not self._dead, "Cannot add a tab to a destroyed Lumen UI window.")
+        if type(tabOptions) == "string" then tabOptions = { icon = tabOptions } end
+        tabOptions = type(tabOptions) == "table" and tabOptions or {}
+        name = tostring(name or "New Tab")
+        local index = #self._tabs + 1
+        local navButton = make("TextButton", nav, {
+            Name = "TabButton", BackgroundColor3 = self._theme.surface, BackgroundTransparency = 1,
+            Size = UDim2.new(1, 0, 0, 42), LayoutOrder = index,
+        })
+        corner(navButton, 10)
+        local navText = label(navButton, name, UDim2.new(0, 39, 0, 0), UDim2.new(1, -46, 1, 0), self._theme.muted, 12)
+        local chosenIcon = tostring(tabOptions.icon or defaultIcons[((index - 1) % #defaultIcons) + 1])
+        local _, navColor = icon(navButton, chosenIcon, self._theme.muted, UDim2.new(0, 11, 0, 12), 18)
+        local indicator = make("Frame", navButton, {
+            Name = "ActiveIndicator", Position = UDim2.new(0, 0, 0, 11), Size = UDim2.new(0, 3, 0, 20),
+            BackgroundColor3 = self._theme.accent, Visible = false,
+        })
+        corner(indicator, 3)
+        local page = make("ScrollingFrame", pages, {
+            Name = "Tab", Size = UDim2.new(1, 0, 1, 0), BackgroundTransparency = 1,
+            CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y,
+            ScrollingDirection = Enum.ScrollingDirection.Y, ScrollBarThickness = 3,
+            ScrollBarImageColor3 = self._theme.accent, Visible = false,
+        })
+        padding(page, 0, 1, 7, 12)
+        make("UIListLayout", page, { SortOrder = Enum.SortOrder.LayoutOrder, Padding = UDim.new(0, 10) })
+        local empty = label(page, "Add your first control to this tab.", nil, UDim2.new(1, 0, 0, 48), self._theme.muted, 12)
+        empty.Name = "EmptyState"
+        empty.LayoutOrder = 1000000
+        empty.TextXAlignment = Enum.TextXAlignment.Center
+        local tabScope = newScope(self, page)
+        local tab = setmetatable({
+            Name = name, Instance = page, _window = self, _content = page, _records = {}, _order = 0,
+            _button = navButton, _empty = empty, _icon = chosenIcon, _hasMatch = true,
+        }, Container)
+        local hovered = false
+        local function renderNav(t)
+            local active = self._activeTab == tab
+            navButton.BackgroundColor3 = t.pale
+            navButton.BackgroundTransparency = (active or hovered) and 0 or 1
+            navText.TextColor3 = active and t.accent or t.muted
+            navColor(active and t.accent or t.muted)
+            indicator.BackgroundColor3 = t.accent
+            indicator.Visible = active
+            page.ScrollBarImageColor3 = t.accent
+        end
+        tab._renderNav = renderNav
+        function tab:Show()
+            if tabScope._dead or window._dead then return end
+            closePopup()
+            window._activeTab = self
+            for _, candidate in ipairs(window._tabs) do
+                candidate.Instance.Visible = candidate == self
+                candidate._renderNav(window._theme)
+            end
+            heading.Text = self.Name
+            description.Text = tostring(tabOptions.description or "Manage your tools in one place.")
+        end
+        function tab:Destroy() page:Destroy() end
+        tabScope:on(navButton.Activated, function() tab:Show() end)
+        tabScope:on(navButton.MouseEnter, function() hovered = true; renderNav(window._theme) end)
+        tabScope:on(navButton.MouseLeave, function() hovered = false; renderNav(window._theme) end)
+        tabScope:cleanup(function()
+            if library._popup and library._popup.window == window then closePopup() end
+            navButton:Destroy()
+            for i, candidate in ipairs(window._tabs) do
+                if candidate == tab then table.remove(window._tabs, i); break end
+            end
+            if not window._dead then
+                if window._activeTab == tab then
+                    window._activeTab = nil
+                    if window._tabs[1] then window._tabs[1]:Show() else heading.Text = "Welcome" end
+                end
+                updateShortcuts()
+            end
+        end)
+        table.insert(self._tabs, tab)
+        paint(self, tabScope, renderNav)
+        updateShortcuts()
+        if not self._activeTab then tab:Show() end
+        deferSearch(self)
+        return tab, page
+    end
+    rootScope:on(minimize.Activated, function() window:SetVisible(false) end)
+    rootScope:on(close.Activated, function() window:Destroy() end)
+    bubbleScope:on(bubble.Activated, function() window:SetVisible(true) end)
+    rootScope:on(search:GetPropertyChangedSignal("Text"), function() refreshSearch(window) end)
+    rootScope:on(dragArea.InputBegan, function(input)
+        local start, initial = inputPoint(input), window._position
+        startPointer(window, root, input, function(point)
+            local difference = point - start
+            local view = viewport()
+            local x = math.clamp(initial.X + difference.X, 8, math.max(8, view.X - window._size.X * window._scale - 8))
+            local y = math.clamp(initial.Y + difference.Y, 8, math.max(8, view.Y - window._size.Y * window._scale - 8))
+            window._position = Vector2.new(x, y)
+            root.Position = UDim2.new(0, x, 0, y)
+        end)
+    end)
+    rootScope:on(resize.InputBegan, function(input)
+        if not window._options.can_resize then return end
+        local start, initialSize, initialScale = inputPoint(input), window._size, window._scale
+        startPointer(window, root, input, function(point)
+            local difference = (point - start) / initialScale
+            local view = viewport()
+            window._size = Vector2.new(
+                math.clamp(initialSize.X + difference.X, minimum.X, math.max(minimum.X, view.X - 32)),
+                math.clamp(initialSize.Y + difference.Y, minimum.Y, math.max(minimum.Y, view.Y - 32)))
+            layout(true)
+        end)
+    end)
+    local cameraConnection
+    local function connectCamera()
+        if cameraConnection then cameraConnection:Disconnect() end
+        local camera = Workspace.CurrentCamera
+        if camera then
+            cameraConnection = camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+                if not window._dead then
+                    if library._popup and library._popup.window == window then closePopup() end
+                    layout(true)
+                end
+            end)
+        end
+        layout(true)
+    end
+    rootScope:on(Workspace:GetPropertyChangedSignal("CurrentCamera"), connectCamera)
+    rootScope:cleanup(function() if cameraConnection then cameraConnection:Disconnect() end end)
+    paint(window, rootScope, function(t)
+        top.BackgroundColor3 = t.header
+        top.SquareBottom.BackgroundColor3 = t.header
+        bubble.BackgroundColor3 = t.accent
+        hero.BackgroundColor3 = t.pale
+        art.BackgroundColor3 = t.accent
+        heroKicker.TextColor3 = t.accent
+        badge.BackgroundColor3 = t.pale
+        badgeText.TextColor3 = t.accent
+        avatar.BackgroundColor3 = t.pale
+        searchColor(t.muted); hintColor(t.muted); resizeColor(t.muted)
+        sideLine.BackgroundColor3 = t.border
+    end)
+    layout(false)
+    connectCamera()
+    return window, root
+end
+
+function library:Notify(title, message, duration, accent)
+    ensureGui()
+    local available = viewport()
+    local width = math.min(320, available.X - 32)
+    local toast = make("Frame", self._gui, {
+        Name = "Notification", AnchorPoint = Vector2.new(1, 1), Size = UDim2.new(0, width, 0, 86),
+        BackgroundColor3 = WHITE, ZIndex = 3000,
+    })
+    corner(toast, 14); stroke(toast, Color3.fromRGB(232, 225, 244))
+    accent = typeof(accent) == "Color3" and accent or DEFAULT_ACCENT
+    local rail = make("Frame", toast, {
+        Position = UDim2.new(0, 0, 0, 17), Size = UDim2.new(0, 3, 1, -34), BackgroundColor3 = accent,
+    })
+    corner(rail, 3)
+    label(toast, title or "Lumen UI", UDim2.new(0, 17, 0, 14), UDim2.new(1, -34, 0, 21),
+        Color3.fromRGB(48, 39, 67), 13, Enum.Font.GothamSemibold)
+    local bodyText = label(toast, message or "", UDim2.new(0, 17, 0, 39), UDim2.new(1, -34, 0, 32),
+        Color3.fromRGB(139, 129, 158), 11)
+    bodyText.TextWrapped = true
+    bodyText.TextTruncate = Enum.TextTruncate.None
+    bodyText.TextYAlignment = Enum.TextYAlignment.Top
+    local data = { Instance = toast, _dead = false }
+    local function arrange()
+        for i, entry in ipairs(library._toasts) do
+            entry.Instance.Position = UDim2.new(1, -20, 1, -20 - (#library._toasts - i) * 98)
+        end
+    end
+    function data:Destroy()
+        if self._dead then return end
+        self._dead = true
+        for i, entry in ipairs(library._toasts) do if entry == self then table.remove(library._toasts, i); break end end
+        toast:Destroy()
+        arrange()
+    end
+    table.insert(self._toasts, data)
+    while #self._toasts > 3 do self._toasts[1]:Destroy() end
+    arrange()
+    task.delay(math.max(1, numeric(duration, 4)), function() data:Destroy() end)
+    return data
+end
+
+function library:FormatWindows()
+    for i, window in ipairs(self._windows) do
+        window._position = Vector2.new(24 + (i - 1) * 28, 64 + (i - 1) * 28)
+        window._layout(true)
+    end
+end
+
+function library:SetVisible(visible)
+    for _, window in ipairs(self._windows) do window:SetVisible(visible) end
+end
+
+function library:Destroy()
+    if self._destroying then return end
+    self._destroying = true
+    closePopup(); cancelPointer(); cancelCapture()
+    local windows = {}
+    for _, window in ipairs(self._windows) do table.insert(windows, window) end
+    for _, window in ipairs(windows) do disposeWindow(window, true) end
+    local toasts = {}
+    for _, toast in ipairs(self._toasts) do table.insert(toasts, toast) end
+    for _, toast in ipairs(toasts) do toast:Destroy() end
+    for _, connection in ipairs(self._connections or {}) do connection:Disconnect() end
+    self._connections = {}
+    local gui = self._gui
+    self._gui = nil
+    if gui then gui:Destroy() end
+    if self._environment and self._environment[RUNTIME_KEY] == self then self._environment[RUNTIME_KEY] = nil end
+    self._bindings, self._windows = {}, {}
+    self._destroyed, self._destroying = true, false
+end
+
+return library
