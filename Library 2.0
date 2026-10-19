@@ -1,9 +1,3 @@
--- Lumen UI 2.0 | Client-side Roblox / LuaU
--- Original AddWindow/AddTab/Add* calling conventions, with a new interface.
--- No external UI assets, downloaded code, polling loops, or game automation.
--- AddSlider:Set(0..100) keeps the original percentage API.
--- AddSlider:SetValue(number) uses the actual min/max range.
-
 local Players = game:GetService("Players")
 local InputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
