@@ -2152,7 +2152,7 @@ local visualsTab = window:AddTab("Player", {
     icon = "profile",
     description = "Movement and free camera",
 })
--- Add advanced ESP controls to the existing Roles & ESP tab, not Player.
+
 local visualExtras = tab:AddSection("Premium ESP | All Players & Dropped Gun")
 local function clearESPEntry(player)
     local objects = extras.visualObjects[player]
@@ -2428,4 +2428,4 @@ task.spawn(function()
     session.Stop()
 end)
 
-window:Notify("MM2 Lumen V4",5)
+window:Notify("MM2 Lumen V4", "Premium Farm in Farming | ESP in Roles | Anti AFK ON", 5)
