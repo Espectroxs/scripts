@@ -12,9 +12,9 @@ local library = loadstring(game:HttpGet(
     true
 ))()
 
-local window = library:AddWindow("MM2 | Private Script", {
+local window = library:AddWindow("MM2 | Lumen Complete V4", {
     main_color = Color3.fromRGB(99, 71, 224),
-    size = Vector2.new(650, 500),
+    size = Vector2.new(715, 545),
     toggle_key = Enum.KeyCode.RightShift,
     show_intro = false,
 })
@@ -173,7 +173,7 @@ end
 
 addExecutorProfile()
 
-local tab = window:AddTab("Roles", {
+local tab = window:AddTab("Roles & ESP", {
     icon = "profile",
     description = "Live roles and player highlights",
 })
@@ -186,7 +186,7 @@ local heroLabel = overview:AddLabel("Hero: checking...")
 local innocentLabel = overview:AddLabel("Innocents: checking...")
 local unknownLabel = overview:AddLabel("Unknown: checking...")
 
-local settings = { esp = true, tags = true, innocents = true }
+local roleSettings = { esp = true, tags = true, innocents = true, allPlayers = false, allNames = false }
 local visualSection = tab:AddSection("Visual settings")
 
 local session = { running = true }
@@ -295,12 +295,13 @@ local function updateVisual(player, role, alive)
     local character = player.Character
     if not character then return end
 
-    local visibleRole = COLORS[role] and alive and
-        (role ~= "Innocent" or settings.innocents)
-    local color = COLORS[role]
+    local allowedRole = (role ~= "Innocent" or roleSettings.innocents)
+    local visibleRole = COLORS[role] and alive and allowedRole
+    local allPlayersVisible = roleSettings.allPlayers and alive and allowedRole
+    local color = (visibleRole and COLORS[role]) or Color3.fromRGB(158, 99, 255)
 
     local highlight = character:FindFirstChild(MARK_HIGHLIGHT)
-    if settings.esp and visibleRole then
+    if (roleSettings.esp and visibleRole) or allPlayersVisible then
         if not highlight then
             highlight = Instance.new("Highlight")
             highlight.Name = MARK_HIGHLIGHT
@@ -319,7 +320,8 @@ local function updateVisual(player, role, alive)
     local head = character:FindFirstChild("Head")
     if not head then return end
     local tag = head:FindFirstChild(MARK_TAG)
-    if settings.tags and visibleRole then
+]
+    if (roleSettings.tags and visibleRole) or (roleSettings.allNames and alive and allowedRole) then
         if not tag then
             tag = Instance.new("BillboardGui")
             tag.Name = MARK_TAG
@@ -342,7 +344,8 @@ local function updateVisual(player, role, alive)
         end
         local label = tag:FindFirstChild("RoleText")
         if label then
-            label.Text = player.DisplayName .. " [" .. role .. "]"
+            label.Text = player.DisplayName
+                .. ((roleSettings.tags and visibleRole) and (" [" .. role .. "]") or "")
             label.TextColor3 = color
         end
     elseif tag then
@@ -351,15 +354,15 @@ local function updateVisual(player, role, alive)
 end
 
 visualSection:AddSwitch("Role ESP", function(value)
-    settings.esp = value
+    roleSettings.esp = value
 end, { default = true, description = "See role highlights through walls" })
 
 visualSection:AddSwitch("Role name tags", function(value)
-    settings.tags = value
+    roleSettings.tags = value
 end, { default = true, description = "Display the role above each player" })
 
 visualSection:AddSwitch("Show Innocents", function(value)
-    settings.innocents = value
+    roleSettings.innocents = value
 end, { default = true, description = "Include Innocents in highlights and tags" })
 
 local function displayPlayer(player, alive)
@@ -420,7 +423,9 @@ local farm = {
     survivalXP = false,
     coinTracer = false,
     protection = false, 
+    permanentNoclip = false,
     gunESP = false,
+    premiumRouting = true, 
     speed = 42,
     targetStrategy = "Distributed",
     avoidPlayers = true,
@@ -696,6 +701,9 @@ local function findDistributedCoin(origin)
         if validCoin(record) then
             local position = record.part.Position
             local distance = (position - origin).Magnitude
+            if not farm.premiumRouting then
+                if distance < best then target, best = record, distance end
+            else
             local slot, hash = coinAssignment(position, groupSize)
 
             local personal = ((hash + LocalPlayer.UserId * 131) % 997) / 997
@@ -724,6 +732,7 @@ local function findDistributedCoin(origin)
             if score < best then
                 target, best = record, score
             end
+            end 
         end
     end
     return target
@@ -978,7 +987,7 @@ local function avoidMurderer()
     local flatDelta = Vector3.new(delta.X, 0, delta.Z)
     if flatDelta.Magnitude > 25 or flatDelta.Magnitude < 0.1 then return end
     local candidate = root.Position + flatDelta.Unit * 18
- 
+
     local rayParams = RaycastParams.new()
     rayParams.FilterType = Enum.RaycastFilterType.Exclude
     rayParams.FilterDescendantsInstances = {LocalPlayer.Character, enemyRoot.Parent}
@@ -1036,9 +1045,10 @@ end))
 remember(RunService.Stepped:Connect(function()
     if not session.running then return end
     local root, humanoid, character = rootAndHumanoid()
-    local shouldNoclip = farm.autoCoins and farm.flyActive and not farm.bagFull
+    local shouldNoclip = (farm.permanentNoclip or
+        (farm.autoCoins and farm.flyActive and not farm.bagFull
+        and farm.flyRoot == root))
         and root and humanoid and character
-        and farm.flyRoot == root
     if shouldNoclip then
         for _, part in ipairs(character:GetDescendants()) do
             if part:IsA("BasePart") then
@@ -1195,8 +1205,16 @@ farmSection:AddSwitch("Auto Farm Coins & Items", function(value)
     end
 end, { default = false, description = "Fly directly to real coins/items, with automatic NoClip and bag-stop" })
 
-farmSection:AddLabel("Global selection: all map coins, not just nearby items")
-local strategyDropdown = farmSection:AddDropdown("Coin Target Strategy", function(value)
+local premiumSection = farmTab:AddSection("Premium Farm | Global Coin Routing")
+premiumSection:AddLabel("Uses the main Auto Farm switch; no duplicate auto-farm engine")
+premiumSection:AddSwitch("Premium Farm Routing", function(value)
+    farm.premiumRouting = value
+    farm.skipped = {}
+    if farm.moveTarget then cancelMove() end
+end, {default = true, description = "ON: search every coin with distributed priorities; OFF: nearest available coin"})
+
+premiumSection:AddLabel("Premium: distributed targets across all distances")
+local strategyDropdown = premiumSection:AddDropdown("Coin Target Strategy", function(value)
     farm.targetStrategy = value
     farm.skipped = {}
     if farm.moveTarget then cancelMove() end
@@ -1206,13 +1224,13 @@ strategyDropdown:Add("Farthest First")
 strategyDropdown:Add("Random Spread")
 strategyDropdown:Set("Distributed", true)
 
-farmSection:AddSwitch("Avoid Other Players' Coins", function(value)
+premiumSection:AddSwitch("Avoid Other Players' Coins", function(value)
     farm.avoidPlayers = value
-end, { default = true, description = "Prefer coins without other players nearby" })
+end, {default = true, description = "Prefer coins without other players nearby"})
 
-farmSection:AddSlider("Player Avoidance Radius", function(value)
+premiumSection:AddSlider("Player Avoidance Radius", function(value)
     farm.avoidRadius = value
-end, { min = 10, max = 90, step = 5, default = 30, suffix = " studs" })
+end, {min = 10, max = 90, step = 5, default = 30, suffix = " studs"})
 
 farmSection:AddSwitch("Auto XP / Survival", function(value)
     farm.survivalXP = value
@@ -1224,7 +1242,7 @@ end, { min = 16, max = 100, step = 2, default = 42, suffix = " studs/s" })
 
 farmSection:AddSlider("Coin Bag Limit (Elite = 50)", function(value)
     farm.bagLimit = math.clamp(math.floor(value), 40, 50)
-    -- A contagem real recebida do servidor continua tendo prioridade.
+
     if farm.bagCurrent and farm.bagCurrent >= (farm.bagMax or farm.bagLimit) then
         farm.bagFull = true
         cancelMove()
@@ -1232,23 +1250,18 @@ farmSection:AddSlider("Coin Bag Limit (Elite = 50)", function(value)
     end
 end, { min = 40, max = 50, step = 10, default = 40, suffix = " coins" })
 
-local utilitySection = farmTab:AddSection("Visuals & Protection")
+local utilitySection = farmTab:AddSection("Coin Tracer")
 utilitySection:AddSwitch("Coin Tracer", function(value)
     farm.coinTracer = value
     farm.lastScan = 0
     if not value then clearCoinTracers() end
 end, { default = false, description = "Beams to up to 12 nearby coins" })
 
-utilitySection:AddSwitch("Gun ESP", function(value)
-    farm.gunESP = value
-    if not value then clearGunESP() end
-end, { default = false, description = "Highlight the dropped Sheriff gun" })
-
-utilitySection:AddSwitch("Protection: Anti-Fling + NoClip + Anti-KB", function(value)
+premiumSection:AddSwitch("Anti-Fling + Anti-KB + NoClip (Premium)", function(value)
     farm.protection = value
-    if not value then
+    if not farm.protection then
         farm.noclipUntil = 0
-        restoreCollision()
+        if not farm.permanentNoclip and not farm.flyActive then restoreCollision() end
         restoreFlingCollision()
     end
 end, { default = false, description = "Anti-fling + Anti-KB; NoClip is already automatic during flying farm" })
@@ -1307,190 +1320,144 @@ session.Farming = farm
 local UserInputService = game:GetService("UserInputService")
 local aimTab = window:AddTab("Aim Lock", {
     icon = "bolt",
-    description = "Role-based aim, PC keybind and weapon control",
+    description = "Murderer / Sheriff target only | manual activation",
 })
 
 local aim = {
-    enabled = false, 
-    active = false,  
+    enabled = false,
+    active = false,
     autoAttack = false,
     autoEquip = false,
-    sheriffInnocents = false, 
-    visibleOnly = false,
-    markTarget = false,
-    magicBullet = false,
-    magicHookInstalled = false,
-    magicHookAvailable = false,
-    magicIntercepted = 0,
-    mode = "Toggle",
-    fov = 300,
-    range = 250,
-    hardLock = false, 
-    smoothing = 0.45, 
-    prediction = 0,  
-    targetPart = "Head",
-    attackInterval = 1.25,
-    knifeInput = "E",
-    target = nil,
+    showTarget = false,
+    lockedPlayer = nil,
     highlighter = nil,
     attackAt = 0,
     equipAt = 0,
-    lastStatus = "Waiting for key",
-    lastRenderStatus = 0,
+    lastUiAt = 0,
+    attackCooldown = 1.25,
     connections = {},
 }
+local aimSection = aimTab:AddSection("Aim Lock | Only Murderer & Sheriff")
+local aimStatus = aimSection:AddLabel("Aim: OFF | Press your key after enabling")
+local aimRoleStatus = aimSection:AddLabel("Your combat role: checking...")
+local aimTargetStatus = aimSection:AddLabel("Target: none")
+local aimAttackStatus = aimSection:AddLabel("Attack: manual")
 
-local controlSection = aimTab:AddSection("Aim Lock | PC")
-local aimStatus = controlSection:AddLabel("Aim: disabled | Select a key to lock")
-local roleStatus = controlSection:AddLabel("Your role: checking...")
-local targetStatus = controlSection:AddLabel("Target: none")
-local attackStatus = controlSection:AddLabel("Attack: awaiting a weapon")
-local magicStatus = controlSection:AddLabel("Magic Bullet: OFF (manual activation)")
-
-local function aimConnect(signal, callback)
-    local connection = signal:Connect(callback)
-    table.insert(aim.connections, connection)
-    return connection
+local function aimConnect(signal, fn)
+    local c = signal:Connect(fn)
+    table.insert(aim.connections, c)
+    return c
 end
-
-local function clearAimTarget()
-    aim.target = nil
-    if aim.highlighter then
-        aim.highlighter:Destroy()
-        aim.highlighter = nil
-    end
+local function resetAimTarget()
+    aim.lockedPlayer = nil
+    if aim.highlighter then aim.highlighter:Destroy() end
+    aim.highlighter = nil
 end
-
 local function deactivateAim()
     aim.active = false
-    clearAimTarget()
+    resetAimTarget()
 end
-
-local function getCombatRole()
+local function isAlive(player)
+    local char = player and player.Character
+    local hum = char and char:FindFirstChildOfClass("Humanoid")
+    local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"))
+    return hum ~= nil and hum.Health > 0 and root ~= nil
+end
+local function detectLocalCombatRole()
     local role, alive = getPlayerRole(LocalPlayer)
     if not alive then return nil end
     if role == "Murderer" then return "Murderer" end
     if role == "Sheriff" or role == "Hero" then return "Sheriff" end
-    return nil
-end
-
-local function isAllowedRole(otherRole, myRole)
-    if myRole == "Murderer" then
-        return otherRole == "Sheriff" or otherRole == "Hero" or otherRole == "Innocent"
-    elseif myRole == "Sheriff" then
-        return otherRole == "Murderer" or (aim.sheriffInnocents and otherRole == "Innocent")
-    end
-    return false
-end
-
-local function getTargetPart(player)
-    local char = player and player.Character
-    if not char then return nil end
-    return char:FindFirstChild(aim.targetPart)
-        or char:FindFirstChild("Head")
-        or char:FindFirstChild("HumanoidRootPart")
-end
-
-local function predictedPoint(player, part)
-    local root = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-    local velocity = root and root.AssemblyLinearVelocity or Vector3.zero
-
-    return part.Position + Vector3.new(velocity.X, 0, velocity.Z) * aim.prediction
-end
-
-local function canSeePlayer(camera, player, point)
-    local exclude = {}
-    if LocalPlayer.Character then table.insert(exclude, LocalPlayer.Character) end
-    local params = RaycastParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = exclude
-    params.IgnoreWater = true
-    local diff = point - camera.CFrame.Position
-    if diff.Magnitude < 0.01 then return true end
-    local result = Workspace:Raycast(camera.CFrame.Position, diff, params)
-    return not result or (player.Character and result.Instance:IsDescendantOf(player.Character))
-end
-
-local function isValidAimTarget(player, myRole, camera, keepCurrent)
-    if not player or player == LocalPlayer then return nil end
-    local role, alive = getPlayerRole(player)
-    if not alive or not isAllowedRole(role, myRole) then return nil end
-    local part = getTargetPart(player)
-    if not part or not part:IsDescendantOf(Workspace) then return nil end
-    local point = predictedPoint(player, part)
-
-    if not keepCurrent then
-        local distance = (part.Position - camera.CFrame.Position).Magnitude
-        if distance > aim.range then return nil end
-        if aim.visibleOnly and not canSeePlayer(camera, player, point) then return nil end
-        local screenPoint, visible = camera:WorldToViewportPoint(point)
-        if not visible or screenPoint.Z <= 0 then return nil end
-        local center = camera.ViewportSize * 0.5
-        local error = (Vector2.new(screenPoint.X, screenPoint.Y) - center).Magnitude
-        if error > aim.fov then return nil end
-        return part, point, error
-    end
-    return part, point, 0
-end
-
-local function findAimTarget(myRole, camera)
-    local bestPlayer, bestError
-    for _, player in ipairs(Players:GetPlayers()) do
-        local part, point, error = isValidAimTarget(player, myRole, camera, false)
-        if part then
-
-            if not bestError or error < bestError then
-                bestPlayer, bestError = player, error
+    if role ~= "Unknown" and role ~= "Innocent" then return nil end
+    for _, parent in ipairs({LocalPlayer.Character, LocalPlayer:FindFirstChildOfClass("Backpack")}) do
+        if parent then
+            for _, tool in ipairs(parent:GetChildren()) do
+                if tool:IsA("Tool") then
+                    local n = tool.Name:lower()
+                    if n:find("knife", 1, true) then return "Murderer" end
+                    if n:find("gun", 1, true) or n:find("revolver", 1, true)
+                        or n:find("pistol", 1, true) then return "Sheriff" end
+                end
             end
         end
     end
-    return bestPlayer
+    return nil
 end
-
-local function refreshTargetHighlight()
-    if not aim.markTarget or not aim.target or not aim.target.Character then
-        if aim.highlighter then aim.highlighter:Destroy(); aim.highlighter = nil end
-        return
+local function targetRoleValid(player, localRole)
+    if player == LocalPlayer or not isAlive(player) then return false end
+    local targetRole, alive = getPlayerRole(player)
+    if not alive then return false end
+    if localRole == "Sheriff" then return targetRole == "Murderer" end
+    if localRole == "Murderer" then
+        return targetRole == "Sheriff" or targetRole == "Hero"
     end
-    if aim.highlighter and aim.highlighter.Adornee == aim.target.Character then return end
-    if aim.highlighter then aim.highlighter:Destroy() end
-    local highlight = Instance.new("Highlight")
-    highlight.Name = "MM2LumenAimSelected"
-    highlight.Adornee = aim.target.Character
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillColor = Color3.fromRGB(255, 95, 185)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.79
-    highlight.OutlineTransparency = 0
-    highlight.Parent = aim.target.Character
-    aim.highlighter = highlight
+    return false
 end
-
-local function getUsableTool(myRole)
-    local character = LocalPlayer.Character
-    if not character then return nil end
-    local function matching(tool)
-        if not tool:IsA("Tool") then return false end
-        local name = tool.Name:lower()
-        if myRole == "Murderer" then
-            return name:find("knife", 1, true) ~= nil
-        else
-            return name:find("gun", 1, true) ~= nil
-                or name:find("revolver", 1, true) ~= nil
-                or name:find("pistol", 1, true) ~= nil
+local function getAimPart(player)
+    local character = player and player.Character
+    return character and (character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart"))
+end
+local function chooseRoleTarget(myRole, camera)
+    local best, bestScore
+    for _, player in ipairs(Players:GetPlayers()) do
+        if targetRoleValid(player, myRole) then
+            local part = getAimPart(player)
+            if part then
+                local vp, onScreen = camera:WorldToViewportPoint(part.Position)
+                local distance = (part.Position - camera.CFrame.Position).Magnitude
+                -- Prioritize onscreen target, but NEVER ignore targets offscreen.
+                local center = camera.ViewportSize * 0.5
+                local pixel = (Vector2.new(vp.X, vp.Y) - center).Magnitude
+                local score = (onScreen and vp.Z > 0) and pixel or (100000 + distance)
+                if not bestScore or score < bestScore then
+                    best, bestScore = player, score
+                end
+            end
         end
     end
-    for _, item in ipairs(character:GetChildren()) do
-        if matching(item) then return item end
+    return best
+end
+local function showLockedTarget()
+    if not aim.showTarget or not aim.lockedPlayer or not aim.lockedPlayer.Character then
+        if aim.highlighter then aim.highlighter:Destroy() end
+        aim.highlighter = nil
+        return
     end
-    if aim.autoEquip and os.clock() - aim.equipAt >= 1 then
+    local char = aim.lockedPlayer.Character
+    if aim.highlighter and aim.highlighter.Parent == char then return end
+    if aim.highlighter then aim.highlighter:Destroy() end
+    local h = Instance.new("Highlight")
+    h.Name = "MM2LumenTargetV3"
+    h.Adornee = char
+    h.FillTransparency = 0.75
+    h.OutlineTransparency = 0
+    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    h.FillColor = Color3.fromRGB(255, 80, 185)
+    h.OutlineColor = Color3.fromRGB(255, 255, 255)
+    h.Parent = char
+    aim.highlighter = h
+end
+local function matchingWeapon(tool, role)
+    if not tool or not tool:IsA("Tool") then return false end
+    local n = tool.Name:lower()
+    if role == "Murderer" then return n:find("knife", 1, true) ~= nil end
+    return n:find("gun", 1, true) ~= nil or n:find("pistol", 1, true) ~= nil
+        or n:find("revolver", 1, true) ~= nil
+end
+local function findWeapon(role, equipIfNeeded)
+    local char = LocalPlayer.Character
+    if not char then return nil end
+    for _, obj in ipairs(char:GetChildren()) do
+        if matchingWeapon(obj, role) then return obj end
+    end
+    if equipIfNeeded and os.clock() - aim.equipAt > 0.7 then
         local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-        local humanoid = character:FindFirstChildOfClass("Humanoid")
-        if backpack and humanoid and humanoid.Health > 0 then
-            for _, item in ipairs(backpack:GetChildren()) do
-                if matching(item) then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if backpack and hum and hum.Health > 0 then
+            for _, obj in ipairs(backpack:GetChildren()) do
+                if matchingWeapon(obj, role) then
                     aim.equipAt = os.clock()
-                    pcall(function() humanoid:EquipTool(item) end)
+                    pcall(function() hum:EquipTool(obj) end)
                     break
                 end
             end
@@ -1498,306 +1465,154 @@ local function getUsableTool(myRole)
     end
     return nil
 end
-
-local function sendClick(button, screen)
+local function sendGunClick(camera, point)
+    local v, vis = camera:WorldToViewportPoint(point)
+    if not vis then return false end
     local vim
     pcall(function() vim = game:GetService("VirtualInputManager") end)
     if vim then
-        local x, y = math.floor(screen.X), math.floor(screen.Y)
         local ok = pcall(function()
-            vim:SendMouseButtonEvent(x, y, button, true, game, 0)
-            vim:SendMouseButtonEvent(x, y, button, false, game, 0)
+            vim:SendMouseButtonEvent(v.X, v.Y, 0, true, game, 0)
+            vim:SendMouseButtonEvent(v.X, v.Y, 0, false, game, 0)
         end)
         if ok then return true end
     end
-    if button == 0 and type(mouse1click) == "function" then
-        return pcall(mouse1click)
-    end
-    if button == 1 and type(mouse2click) == "function" then
-        return pcall(mouse2click)
-    end
+    if type(mouse1click) == "function" then return pcall(mouse1click) end
     return false
 end
-
-local function sendKnifeKey()
+local function sendKnifeThrow()
     local vim
     pcall(function() vim = game:GetService("VirtualInputManager") end)
     if vim then
-        local ok = pcall(function()
+        return pcall(function()
             vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-        end)
-        if ok then
-            task.delay(0.18, function()
+            task.delay(0.12, function()
                 pcall(function() vim:SendKeyEvent(false, Enum.KeyCode.E, false, game) end)
             end)
-            return true
-        end
+        end)
     end
     if type(keypress) == "function" and type(keyrelease) == "function" then
-        local ok = pcall(function() keypress(0x45) end)
-        if ok then
-            task.delay(0.18, function() pcall(keyrelease, 0x45) end)
-            return true
-        end
+        return pcall(function()
+            keypress(0x45)
+            task.delay(0.12, function() pcall(keyrelease, 0x45) end)
+        end)
     end
     return false
 end
-
-local function fireWeapon(myRole, tool, camera, point)
-    if not tool or not tool:IsDescendantOf(LocalPlayer.Character) then return false end
-    if window._visible or UserInputService:GetFocusedTextBox() then
-        aim.lastStatus = "Close UI (RightShift) before auto attack"
-        return false
-    end
-    local viewportPos = camera:WorldToViewportPoint(point)
-    local screen = Vector2.new(viewportPos.X, viewportPos.Y)
-    if myRole == "Murderer" then
-
-        if aim.knifeInput == "Right Mouse" then
-            return sendClick(1, screen)
-        end
-        return sendKnifeKey()
-    else
-        if sendClick(0, screen) then return true end
-
+local function visibleShot(camera, player, point)
+    local param = RaycastParams.new()
+    param.FilterType = Enum.RaycastFilterType.Exclude
+    param.FilterDescendantsInstances = {LocalPlayer.Character}
+    local v = point - camera.CFrame.Position
+    local hit = Workspace:Raycast(camera.CFrame.Position, v, param)
+    return not hit or (player.Character and hit.Instance:IsDescendantOf(player.Character))
+end
+local function useAimWeapon(role, camera, point)
+    if window._visible or UserInputService:GetFocusedTextBox() then return false end
+    local tool = findWeapon(role, aim.autoEquip)
+    if not tool then return false end
+    if role == "Murderer" then return sendKnifeThrow() end
+    if not sendGunClick(camera, point) then
         return pcall(function() tool:Activate() end)
     end
+    return true
 end
 
-local function installMagicBulletHook()
-    if aim.magicHookInstalled then return true end
-    if type(hookmetamethod) ~= "function" or type(getnamecallmethod) ~= "function" then
-        return false
-    end
-    local originalNamecall
-    local function redirectedNamecall(remote, ...)
-        if session.running and aim.enabled and aim.active and aim.magicBullet
-            and aim.target and remote and remote.Name == "ShootGun"
-            and getnamecallmethod() == "InvokeServer" then
-            local args = {...}
-            if typeof(args[2]) == "Vector3" then
-                local role = getCombatRole()
-                local part = getTargetPart(aim.target)
-                if role == "Sheriff" and part and part:IsDescendantOf(Workspace) then
-                    args[2] = predictedPoint(aim.target, part)
-                    aim.magicIntercepted = aim.magicIntercepted + 1
-                    return originalNamecall(remote, table.unpack(args))
-                end
-            end
-        end
-        return originalNamecall(remote, ...)
-    end
-    local ok = pcall(function()
-        local handler = redirectedNamecall
-        if type(newcclosure) == "function" then
-            handler = newcclosure(redirectedNamecall)
-        end
-        originalNamecall = hookmetamethod(game, "__namecall", handler)
-    end)
-    if ok and type(originalNamecall) == "function" then
-        aim.magicHookInstalled = true
-        return true
-    end
-    return false
-end
-
-controlSection:AddSwitch("Enable Aim Lock", function(value)
-    aim.enabled = value
-    if not value then deactivateAim() end
-end, { default = false, description = "Use the chosen key to lock/unlock your aim" })
-
-local keybindControl = controlSection:AddKeybind("Aim key (PC)", function()
-    if not session.running or not aim.enabled then return end
-    if aim.mode == "Toggle" then
-        if aim.active then
-            deactivateAim()
-        else
-            aim.active = true
-            aim.attackAt = 0
-        end
-    else
-        aim.active = true
-        aim.attackAt = 0
-    end
-end, { standard = Enum.KeyCode.F, active_when_hidden = true, allow_mouse = true })
-
-local aimModeSelect = controlSection:AddDropdown("Key behavior", function(value)
-    aim.mode = value
-    deactivateAim()
-end)
-aimModeSelect:Add("Toggle")
-aimModeSelect:Add("Hold")
-aimModeSelect:Set("Toggle", true)
-
-local aimSettingsSection = aimTab:AddSection("Aim Settings")
-aimSettingsSection:AddSwitch("Magic Bullet (Wall Shot - Experimental)", function(value)
-    if value then
-        aim.magicHookAvailable = installMagicBulletHook()
-        aim.magicBullet = aim.magicHookAvailable
-        if aim.magicHookAvailable then
-            magicStatus.Text = "Magic Bullet: ON | shot redirection (server may block walls)"
-        else
-            magicStatus.Text = "Magic Bullet: executor lacks hookmetamethod"
-            window:Notify("Magic Bullet", "Your executor does not support shot interception", 4)
-        end
-    else
-        aim.magicBullet = false
-        magicStatus.Text = "Magic Bullet: OFF"
-    end
-end, { default = false, description = "Attempts to retarget ShootGun through obstacles. Server can block impacts." })
-
-aimSettingsSection:AddLabel("Experimental: walls are NOT guaranteed to be penetrated.")
-aimSettingsSection:AddSwitch("Hard Lock (100% fixed)", function(value)
-    aim.hardLock = value
-end, { default = false, description = "Instantly follow the same target's head every frame until invalid/unlocked" })
-
-aimSettingsSection:AddSwitch("Auto Shoot / Throw", function(value)
-    aim.autoAttack = value
-end, { default = false, description = "Shoot as Sheriff; throw as Murderer when locked" })
-
-aimSettingsSection:AddSwitch("Auto Equip Weapon", function(value)
-    aim.autoEquip = value
-end, { default = false, description = "Equip your own gun or knife if available" })
-
-aimSettingsSection:AddSwitch("Sheriff: target Innocents too", function(value)
-    aim.sheriffInnocents = value
-    clearAimTarget()
-end, { default = false, description = "WARNING: shooting Innocents eliminates the Sheriff" })
-
-aimSettingsSection:AddSwitch("Visible Targets Only", function(value)
-    aim.visibleOnly = value
-    clearAimTarget()
-end, { default = false, description = "Require line of sight; avoids shooting walls" })
-
-aimSettingsSection:AddSwitch("Highlight Locked Target", function(value)
-    aim.markTarget = value
-    refreshTargetHighlight()
-end, { default = false, description = "Pink ESP highlight on selected player" })
-
-aimSettingsSection:AddSlider("Aim FOV (pixels)", function(value)
-    aim.fov = value
-end, { min = 60, max = 800, step = 20, default = 300, suffix = " px" })
-
-aimSettingsSection:AddSlider("Max Target Distance", function(value)
-    aim.range = value
-end, { min = 40, max = 600, step = 20, default = 250, suffix = " studs" })
-
-aimSettingsSection:AddSlider("Smooth Strength (Hard Lock OFF)", function(value)
-    aim.smoothing = value / 100
-end, { min = 10, max = 100, step = 5, default = 45, suffix = "%" })
-
-aimSettingsSection:AddSlider("Movement Prediction", function(value)
-    aim.prediction = value / 100
-end, { min = 0, max = 25, step = 1, default = 0, suffix = "%" })
-
-aimSettingsSection:AddSlider("Attack Cooldown", function(value)
-    aim.attackInterval = value / 100
-end, { min = 50, max = 300, step = 5, default = 125, suffix = " x0.01s" })
-
-local hitboxDropdown = aimSettingsSection:AddDropdown("Lock Part", function(value)
-    aim.targetPart = value
-    clearAimTarget()
-end)
-hitboxDropdown:Add("Head")
-hitboxDropdown:Add("HumanoidRootPart")
-hitboxDropdown:Set("Head", true)
-
-local knifeDropdown = aimSettingsSection:AddDropdown("Knife Throw Input", function(value)
-    aim.knifeInput = value
-end)
-knifeDropdown:Add("E")
-knifeDropdown:Add("Right Mouse")
-knifeDropdown:Set("E", true)
-
-aimSettingsSection:AddButton("Unlock Aim Now", deactivateAim)
-
-aimConnect(UserInputService.InputEnded, function(input)
-    if aim.mode ~= "Hold" or not aim.active then return end
-    local key = keybindControl:Get()
-    if input.KeyCode == key or input.UserInputType == key then
-        deactivateAim()
-    end
-end)
+aimSection:AddSwitch("Enable Aim Lock", function(v)
+    aim.enabled = v
+    if not v then deactivateAim() end
+end, {default = false, description = "OFF on startup; choose when to activate"})
+local aimKey = aimSection:AddKeybind("Toggle Aim Key (PC)", function()
+    if not aim.enabled or not session.running then return end
+    if aim.active then deactivateAim() else aim.active = true; aim.attackAt = 0 end
+end, {standard = Enum.KeyCode.F, active_when_hidden = true, allow_mouse = true})
+aimSection:AddSwitch("Auto Shoot / Throw", function(v)
+    aim.autoAttack = v
+end, {default = false, description = "OFF on startup; only when target is locked and visible"})
+aimSection:AddSwitch("Auto Equip Weapon", function(v)
+    aim.autoEquip = v
+end, {default = false})
+aimSection:AddSwitch("Highlight Locked Player", function(v)
+    aim.showTarget = v
+    showLockedTarget()
+end, {default = false})
+aimSection:AddSlider("Shot / Throw Interval", function(v)
+    aim.attackCooldown = v / 100
+end, {min = 65, max = 300, step = 5, default = 125, suffix = " x0.01s"})
+aimSection:AddLabel("Sheriff aims ONLY at Murderer. Murderer aims ONLY at Sheriff/Hero.")
+aimSection:AddLabel("If server role data is unavailable, target role may be Unknown.")
+aimSection:AddButton("Unlock Current Target", deactivateAim)
 
 aimConnect(LocalPlayer.CharacterAdded, deactivateAim)
-aimConnect(Players.PlayerRemoving, function(player)
-    if player == aim.target then clearAimTarget() end
+aimConnect(Players.PlayerRemoving, function(p)
+    if p == aim.lockedPlayer then resetAimTarget() end
 end)
-
 local RENDER_KEY = "MM2LumenAimLockRender"
-RunService:BindToRenderStep(RENDER_KEY, Enum.RenderPriority.Camera.Value + 1, function()
+RunService:BindToRenderStep(RENDER_KEY, Enum.RenderPriority.Camera.Value + 2, function()
     if not session.running or window._dead then return end
-    local myRole = getCombatRole()
-    if os.clock() - aim.lastRenderStatus >= 0.2 then
-        aim.lastRenderStatus = os.clock()
-        roleStatus.Text = "Your role: " .. (myRole or "Unknown / no weapon")
-    end
-    if not aim.enabled or not aim.active or not myRole then
-        if aim.target then clearAimTarget() end
-        if os.clock() - aim.lastRenderStatus < 0.035 then
-            aimStatus.Text = not aim.enabled and "Aim: disabled" or
-                (not aim.active and "Aim: ready (press the key)" or "Aim: waiting for role")
-            targetStatus.Text = "Target: none"
-        end
+    if session.Extras and session.Extras.freecam then
+        if aim.active then deactivateAim() end
         return
     end
-
+    local role = detectLocalCombatRole()
+    if os.clock() - aim.lastUiAt >= 0.20 then
+        aim.lastUiAt = os.clock()
+        aimRoleStatus.Text = "Your combat role: " .. tostring(role or "Unknown")
+        aimStatus.Text = not aim.enabled and "Aim: OFF" or
+            (aim.active and "Aim: LOCKING TARGET" or "Aim: ready | press chosen key")
+    end
+    if not aim.enabled or not aim.active or not role then
+        if aim.lockedPlayer then resetAimTarget() end
+        return
+    end
     local camera = Workspace.CurrentCamera
     if not camera then return end
-    local part, point
-    if aim.target then
-        part, point = isValidAimTarget(aim.target, myRole, camera, true)
-        if not part then clearAimTarget() end
+    if not targetRoleValid(aim.lockedPlayer, role) then
+        resetAimTarget()
+        aim.lockedPlayer = chooseRoleTarget(role, camera)
     end
-    if not aim.target then
-        aim.target = findAimTarget(myRole, camera)
-        if aim.target then
-            aim.attackAt = math.max(aim.attackAt, os.clock() + 0.20)
-            part, point = isValidAimTarget(aim.target, myRole, camera, true)
-        end
-    end
-    if not aim.target or not point then
-        if os.clock() - aim.lastRenderStatus < 0.035 then
-            aimStatus.Text = "Aim: scanning inside FOV"
-            targetStatus.Text = "Target: none eligible/visible"
-            attackStatus.Text = "Attack: waiting for target"
-        end
+    local part = getAimPart(aim.lockedPlayer)
+    if not part then
+        if os.clock() - aim.lastUiAt < 0.04 then aimTargetStatus.Text = "Target: no confirmed enemy" end
         return
     end
-    refreshTargetHighlight()
+    showLockedTarget()
+    local point = part.Position
     local origin = camera.CFrame.Position
-    if (point - origin).Magnitude < 0.1 then return end
-    local goal = CFrame.lookAt(origin, point)
+    if (point - origin).Magnitude > 0.1 then
 
-    if aim.hardLock then
-        camera.CFrame = goal
-    else
-        camera.CFrame = camera.CFrame:Lerp(goal, math.clamp(aim.smoothing, 0.1, 1))
+        camera.CFrame = CFrame.lookAt(origin, point)
     end
-
-    local tool = getUsableTool(myRole)
-    if os.clock() - aim.lastRenderStatus < 0.035 then
-        aimStatus.Text = (aim.hardLock and "Aim: HARD LOCK | " or "Aim: SMOOTH LOCK | ") .. myRole
-        targetStatus.Text = "Target: @" .. aim.target.Name
-        attackStatus.Text = "Attack: " .. (not aim.autoAttack and "manual" or
-            (tool and (myRole == "Murderer" and "knife throw" or "gun shot") or "equipping/waiting"))
-        if aim.magicBullet then
-            magicStatus.Text = string.format("Magic Bullet: ON | redirected %d shot(s), server decides hits", aim.magicIntercepted)
-        end
+    if os.clock() - aim.lastUiAt < 0.04 then
+        aimTargetStatus.Text = "Target: @" .. aim.lockedPlayer.Name
+        aimAttackStatus.Text = aim.autoAttack and "Attack: automatic" or "Attack: manual"
     end
-
-    if not aim.autoAttack or not tool or os.clock() < aim.attackAt then return end
-    local alignment = camera.CFrame.LookVector:Dot((point - camera.CFrame.Position).Unit)
-    if alignment < 0.995 then return end
-
-    if not (aim.magicBullet and aim.magicHookAvailable) and not canSeePlayer(camera, aim.target, point) then return end
-
-    aim.attackAt = os.clock() + aim.attackInterval
-    local successful = fireWeapon(myRole, tool, camera, point)
-    if not successful and os.clock() - aim.lastRenderStatus < 0.035 then
-        attackStatus.Text = "Attack: input unavailable (executor/game)"
-    end
+    if not aim.autoAttack or os.clock() < aim.attackAt then return end
+    if not visibleShot(camera, aim.lockedPlayer, point) then return end
+    aim.attackAt = os.clock() + aim.attackCooldown
+    useAimWeapon(role, camera, point)
 end)
+session.AimLock = aim
+
+aim.QuickShootMurder = function()
+    if not UserInputService.TouchEnabled then
+        window:Notify("Mobile only", "This button is for touch devices", 3)
+        return
+    end
+    if detectLocalCombatRole() ~= "Sheriff" then
+        window:Notify("Quick Shoot", "Requires Sheriff/Hero and a gun", 3)
+        return
+    end
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+    local target = chooseRoleTarget("Sheriff", camera)
+    local part = getAimPart(target)
+    if not part then return end
+    camera.CFrame = CFrame.lookAt(camera.CFrame.Position, part.Position)
+    local gun = findWeapon("Sheriff", true)
+    if not gun then task.wait(0.15); gun = findWeapon("Sheriff", false) end
+    if gun then pcall(function() gun:Activate() end) end
+end
 
 local antiTab = window:AddTab("Anti AFK", {
     icon = "keyboard",
@@ -1836,7 +1651,6 @@ local function antiPulse(reason)
     if now - antiAFK.lastPulse < 25 then return end
     antiAFK.lastPulse = now
 
-    -- Metodo principal usado em scripts Roblox; nao depende de eventos da arma.
     local ok = pcall(function()
         VirtualUser:CaptureController()
         VirtualUser:ClickButton2(Vector2.zero)
@@ -1902,8 +1716,694 @@ end)
 
 session.AntiAFK = antiAFK
 
+local TeleportService = game:GetService("TeleportService")
+local HttpService = game:GetService("HttpService")
+local Lighting = game:GetService("Lighting")
+local extras = {
+    running = true,
+    invisible = false,
+    invisibleUser = false,
+    feRequested = false,
+    walkEnabled = false,
+    jumpEnabled = false,
+    walkValue = 24,
+    jumpValue = 60,
+    noclip = false,
+    autoKill = false,
+    killMode = "Teleport",
+    flingAll = false,
+    flingTouch = false,
+    targetPlayerName = nil,
+    espHitbox = false,
+    freecam = false,
+    freecamSpeed = 45,
+    freecamAngles = Vector2.new(0, 0),
+    freecamCFrame = nil,
+    oldCameraType = nil,
+    oldCameraSubject = nil,
+    fpsBoost = false,
+    noFog = false,
+    plastic = false,
+    originals = setmetatable({}, {__mode = "k"}),
+    graphicsVersion = 0,
+    visualMeta = {},
+    originalQuality = nil,
+    avatarOriginals = setmetatable({}, {__mode = "k"}),
+    originalWalk = nil,
+    originalJump = nil,
+    originalUseJumpPower = nil,
+    connections = {},
+    visualObjects = {},
+    busyKill = false,
+    busyFling = false,
+    lastKillAt = 0,
+    lastFlingAt = 0,
+}
+session.Extras = extras
+local function trackExtra(signal, fn)
+    local c = signal:Connect(fn)
+    table.insert(extras.connections, c)
+    return c
+end
+local function notice(title, body)
+    if session.running and not window._dead then window:Notify(title, body, 4) end
+end
+local function preserveProperty(obj, prop)
+    if not obj or not obj.Parent then return end
+    local saved = extras.originals[obj]
+    if not saved then saved = {}; extras.originals[obj] = saved end
+    if saved[prop] == nil then
+        local ok, old = pcall(function() return obj[prop] end)
+        if ok then saved[prop] = old end
+    end
+end
+local function restoreGraphics()
+    for obj, properties in pairs(extras.originals) do
+        if obj and obj.Parent then
+            for prop, value in pairs(properties) do
+                pcall(function() obj[prop] = value end)
+            end
+        end
+        extras.originals[obj] = nil
+    end
+end
+local function boostObject(obj)
+    if extras.fpsBoost then
+        if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Smoke")
+            or obj:IsA("Fire") or obj:IsA("Sparkles") then
+            preserveProperty(obj, "Enabled")
+            pcall(function() obj.Enabled = false end)
+        elseif obj:IsA("Decal") or obj:IsA("Texture") then
+            -- Graphical tweak; gameplay objects are not destroyed.
+            preserveProperty(obj, "Transparency")
+            pcall(function() obj.Transparency = 1 end)
+        end
+    end
+    if extras.plastic and obj:IsA("BasePart") and not (LocalPlayer.Character
+        and obj:IsDescendantOf(LocalPlayer.Character)) then
+        preserveProperty(obj, "Material")
+        preserveProperty(obj, "Reflectance")
+        preserveProperty(obj, "CastShadow")
+        pcall(function()
+            obj.Material = Enum.Material.Plastic
+            obj.Reflectance = 0
+            obj.CastShadow = false
+        end)
+    end
+end
+local function applyLighting()
+    if extras.noFog or extras.fpsBoost then
+        for _, effect in ipairs(Lighting:GetChildren()) do
+            if effect:IsA("Atmosphere") then
+                preserveProperty(effect, "Density")
+                preserveProperty(effect, "Haze")
+                preserveProperty(effect, "Glare")
+                effect.Density = 0
+                effect.Haze = 0
+                effect.Glare = 0
+            end
+        end
+        preserveProperty(Lighting, "GlobalShadows")
+        preserveProperty(Lighting, "FogEnd")
+        preserveProperty(Lighting, "EnvironmentDiffuseScale")
+        preserveProperty(Lighting, "EnvironmentSpecularScale")
+        pcall(function()
+            Lighting.GlobalShadows = false
+            Lighting.FogEnd = 1e9
+            Lighting.EnvironmentDiffuseScale = 0
+            Lighting.EnvironmentSpecularScale = 0
+        end)
+    end
+end
+local function rebuildGraphics()
+    extras.graphicsVersion = extras.graphicsVersion + 1
+    if extras.fpsBoost then
+        pcall(function()
+            if extras.originalQuality == nil then
+                extras.originalQuality = settings().Rendering.QualityLevel
+            end
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+        end)
+    elseif extras.originalQuality ~= nil then
+        pcall(function() settings().Rendering.QualityLevel = extras.originalQuality end)
+        extras.originalQuality = nil
+    end
+    local generation = extras.graphicsVersion
+    restoreGraphics()
+    if extras.noFog or extras.fpsBoost then applyLighting() end
+    if not extras.fpsBoost and not extras.plastic then return end
+    local all = game:GetDescendants()
+    task.spawn(function()
+        for i, obj in ipairs(all) do
+            if not session.running or generation ~= extras.graphicsVersion then return end
+            boostObject(obj)
+            if i % 180 == 0 then task.wait() end
+        end
+    end)
+end
+trackExtra(game.DescendantAdded, function(obj)
+    if extras.noFog and obj:IsA("Atmosphere") then
+        task.defer(function() if obj.Parent then applyLighting() end end)
+    end
+    if extras.fpsBoost or extras.plastic then
+        task.defer(function() if obj.Parent and session.running then boostObject(obj) end end)
+    end
+end)
+
+local invisibleTab = window:AddTab("Invisibility", {
+    icon = "star",
+    description = "Local stealth & defensive settings",
+})
+local stealthSection = invisibleTab:AddSection("Invisibility")
+local invisibleInfo = stealthSection:AddLabel("Visibility: normal")
+local function invisibleCharacter()
+    local character = LocalPlayer.Character
+    if not character then return end
+    for _, obj in ipairs(character:GetDescendants()) do
+        if obj:IsA("BasePart") then
+            local saved = extras.avatarOriginals[obj]
+            if saved == nil then extras.avatarOriginals[obj] = obj.LocalTransparencyModifier end
+            obj.LocalTransparencyModifier = 1
+        elseif obj:IsA("Decal") then
+            if extras.avatarOriginals[obj] == nil then
+                extras.avatarOriginals[obj] = obj.Transparency
+            end
+            obj.Transparency = 1
+        end
+    end
+end
+local function restoreAvatar()
+    for obj, value in pairs(extras.avatarOriginals) do
+        if obj and obj.Parent then
+            pcall(function()
+                if obj:IsA("BasePart") then obj.LocalTransparencyModifier = value
+                elseif obj:IsA("Decal") then obj.Transparency = value end
+            end)
+        end
+        extras.avatarOriginals[obj] = nil
+    end
+end
+local function applyStealth()
+    if extras.invisible then invisibleCharacter() else restoreAvatar() end
+    invisibleInfo.Text = extras.invisible
+        and "Invisible locally | Other players MAY still see you"
+        or "Visibility: normal"
+end
+stealthSection:AddSwitch("Invisible Character (Local)", function(v)
+    extras.invisibleUser = v
+    extras.invisible = extras.invisibleUser or extras.feRequested
+    applyStealth()
+end, {default = false, description = "Only changes local rendering; no server-side guarantee"})
+stealthSection:AddSwitch("FE Invisibility (Premium / Experimental)", function(v)
+    extras.feRequested = v
+    if v then
+
+        notice("FE Invisibility", "Only local invisibility is available; FE needs server support")
+    end
+    extras.invisible = extras.invisibleUser or extras.feRequested
+    applyStealth()
+end, {default = false, description = "No claim of FE replication; local fallback only"})
+stealthSection:AddLabel("FE invisibility requires a compatible server ability; this script cannot force it.")
+trackExtra(LocalPlayer.CharacterAdded, function()
+    extras.avatarOriginals = setmetatable({}, {__mode = "k"})
+    extras.originalWalk, extras.originalJump, extras.originalUseJumpPower = nil, nil, nil
+    task.delay(0.6, function()
+        if not session.running then return end
+        if extras.invisible then invisibleCharacter() end
+    end)
+end)
+trackExtra(RunService.Heartbeat, function()
+    if not session.running then return end
+    local root, hum = rootAndHumanoid()
+    if not hum then return end
+    if extras.walkEnabled then
+        if extras.originalWalk == nil then extras.originalWalk = hum.WalkSpeed end
+        hum.WalkSpeed = extras.walkValue
+    end
+    if extras.jumpEnabled then
+        if extras.originalUseJumpPower == nil then extras.originalUseJumpPower = hum.UseJumpPower end
+        if extras.originalJump == nil then extras.originalJump = hum.JumpPower end
+        hum.UseJumpPower = true
+        hum.JumpPower = extras.jumpValue
+    end
+end)
+
+local combatTab = window:AddTab("Combat & Fling", {
+    icon = "bolt",
+    description = "Murderer combat, optional physics & player selection",
+})
+local killSection = combatTab:AddSection("Combat | Murderer")
+local combatStatus = killSection:AddLabel("Combat: ready | All actions OFF")
+local function combatPlayers()
+    local list = {}
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and isAlive(p) then
+            local role = getPlayerRole(p)
+            if role ~= "Murderer" then table.insert(list, p) end
+        end
+    end
+    table.sort(list, function(a,b) return a.UserId < b.UserId end)
+    return list
+end
+local function tryKillPlayer(target)
+    if not session.running or detectLocalCombatRole() ~= "Murderer" then return false end
+    if not isAlive(target) then return false end
+    local root, hum = rootAndHumanoid()
+    local theirRoot = target.Character and target.Character:FindFirstChild("HumanoidRootPart")
+    if not root or not theirRoot then return false end
+    local knife = findWeapon("Murderer", true)
+    if not knife then
+        task.wait(0.12)
+        knife = findWeapon("Murderer", false)
+    end
+    if not knife then return false end
+    if extras.killMode == "Bring (Experimental)" then
+
+        pcall(function() theirRoot.CFrame = root.CFrame * CFrame.new(0, 0, -2) end)
+    else
+        pcall(function() root.CFrame = theirRoot.CFrame * CFrame.new(0, 0, 2) end)
+    end
+    task.wait(0.10)
+    pcall(function() knife:Activate() end)
+    return true
+end
+local function killAllOnce()
+    if extras.busyKill then return end
+    if detectLocalCombatRole() ~= "Murderer" then
+        notice("Kill All", "Only works with the Murderer role and a normal knife")
+        return
+    end
+    extras.busyKill = true
+    task.spawn(function()
+        local count = 0
+        for _, p in ipairs(combatPlayers()) do
+            if not session.running then break end
+            if tryKillPlayer(p) then count = count + 1 end
+            task.wait(0.28)
+        end
+        extras.busyKill = false
+        combatStatus.Text = "Combat: attempted " .. count .. " normal knife hit(s)"
+    end)
+end
+killSection:AddButton("Kill All (Premium) | Once", killAllOnce)
+local killModeDrop = killSection:AddDropdown("Murderer Auto Kill Mode", function(v)
+    extras.killMode = v
+end)
+killModeDrop:Add("Teleport")
+killModeDrop:Add("Bring (Experimental)")
+killModeDrop:Set("Teleport", true)
+killSection:AddSwitch("Auto Kill All", function(v)
+    extras.autoKill = v
+    combatStatus.Text = v and "Combat: auto kill ON" or "Combat: auto kill OFF"
+end, {default = false, description = "Murderer only; attempts ordinary knife hits"})
+killSection:AddButton("Faster Kill Murder (Mobile Only)", function()
+    aim.QuickShootMurder()
+end)
+killSection:AddLabel("Teleport/Bring and melee hits can be rejected by the MM2 server.")
+
+task.spawn(function()
+    while session.running do
+        if extras.autoKill and not extras.busyKill and os.clock() - extras.lastKillAt > 1.8 then
+            extras.lastKillAt = os.clock()
+            if detectLocalCombatRole() == "Murderer" then
+                killAllOnce()
+            else
+                combatStatus.Text = "Combat: waiting for Murderer role"
+            end
+        end
+        task.wait(0.25)
+    end
+end)
+local flingSection = combatTab:AddSection("Fling | Physics (Experimental)")
+local playerDropdown = flingSection:AddDropdown("Fling Target Player", function(v)
+    extras.targetPlayerName = v
+end)
+local function refreshPlayerList()
+    local old = extras.targetPlayerName
+    playerDropdown:Clear()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then playerDropdown:Add(p.Name) end
+    end
+    if old and playerDropdown:Set(old, true) then
+        extras.targetPlayerName = old
+    else
+        extras.targetPlayerName = nil
+    end
+end
+refreshPlayerList()
+flingSection:AddButton("Refresh Target List", refreshPlayerList)
+local function flingPlayer(p)
+    if extras.busyFling or not isAlive(p) then return false end
+    local root, hum = rootAndHumanoid()
+    local targetRoot = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+    if not root or not targetRoot then return false end
+    extras.busyFling = true
+    local savedCF = root.CFrame
+    task.spawn(function()
+
+        for _ = 1, 3 do
+            if not session.running or not targetRoot.Parent or not root.Parent then break end
+            pcall(function()
+                root.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 1.4)
+                root.AssemblyAngularVelocity = Vector3.new(0, 135, 0)
+                root.AssemblyLinearVelocity = targetRoot.CFrame.LookVector * 80
+            end)
+            task.wait(0.14)
+        end
+        if root.Parent then
+            pcall(function()
+                root.AssemblyAngularVelocity = Vector3.zero
+                root.AssemblyLinearVelocity = Vector3.zero
+                root.CFrame = savedCF
+            end)
+        end
+        extras.busyFling = false
+    end)
+    return true
+end
+flingSection:AddButton("Fling Selected Player", function()
+    local p = extras.targetPlayerName and Players:FindFirstChild(extras.targetPlayerName)
+    if not p or not flingPlayer(p) then notice("Fling", "Select an alive target first") end
+end)
+flingSection:AddButton("Fling Murderer", function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and getPlayerRole(p) == "Murderer" then
+            flingPlayer(p); return
+        end
+    end
+    notice("Fling", "No confirmed Murderer detected")
+end)
+flingSection:AddButton("Fling Sheriff", function()
+    for _, p in ipairs(Players:GetPlayers()) do
+        local role = getPlayerRole(p)
+        if p ~= LocalPlayer and (role == "Sheriff" or role == "Hero") then
+            flingPlayer(p); return
+        end
+    end
+    notice("Fling", "No confirmed Sheriff/Hero detected")
+end)
+flingSection:AddSwitch("Auto Fling All", function(v)
+    extras.flingAll = v
+end, {default = false})
+flingSection:AddSwitch("Fling Touch", function(v)
+    extras.flingTouch = v
+    if not v then
+        local root = rootAndHumanoid()
+        if root then root.AssemblyAngularVelocity = Vector3.zero end
+    end
+end, {default = false, description = "Attempts spin when nearby players are touching"})
+flingSection:AddLabel("Physics may only affect your client. Use OFF to restore normal motion.")
+task.spawn(function()
+    while session.running do
+        if extras.flingAll and not extras.busyFling and os.clock() - extras.lastFlingAt > 1.4 then
+            extras.lastFlingAt = os.clock()
+            local players = {}
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and isAlive(p) then table.insert(players, p) end
+            end
+            if #players > 0 then
+                extras.flingIndex = ((extras.flingIndex or 0) % #players) + 1
+                flingPlayer(players[extras.flingIndex])
+            end
+        end
+        if extras.flingTouch then
+            local root = rootAndHumanoid()
+            if root then
+                local near = false
+                for _, p in ipairs(Players:GetPlayers()) do
+                    local other = p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+                    if p ~= LocalPlayer and other and (other.Position - root.Position).Magnitude < 5 then
+                        near = true
+                        break
+                    end
+                end
+                if near and not extras.busyFling then
+                    root.AssemblyAngularVelocity = Vector3.new(0, 100, 0)
+                elseif not extras.busyFling then
+                    root.AssemblyAngularVelocity = Vector3.zero
+                end
+            end
+        end
+        task.wait(0.18)
+    end
+end)
+
+local visualsTab = window:AddTab("Player", {
+    icon = "profile",
+    description = "Movement and free camera",
+})
+-- Add advanced ESP controls to the existing Roles & ESP tab, not Player.
+local visualExtras = tab:AddSection("Premium ESP | All Players & Dropped Gun")
+local function clearESPEntry(player)
+    local objects = extras.visualObjects[player]
+    if objects then
+        for _, obj in ipairs(objects) do
+            if obj then pcall(function() obj:Destroy() end) end
+        end
+    end
+    extras.visualObjects[player] = nil
+    extras.visualMeta[player] = nil
+end
+local function refreshPlayerESP()
+
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer then
+            local char = p.Character
+            local signature = tostring(extras.espHitbox)
+            local meta = extras.visualMeta[p]
+            if not (meta and meta.char == char and meta.signature == signature) then
+                clearESPEntry(p)
+                local root = char and char:FindFirstChild("HumanoidRootPart")
+                if extras.espHitbox and root and isAlive(p) then
+                    local box = Instance.new("BoxHandleAdornment")
+                    box.Name = "MM2HitboxVisualOnly"
+                    box.Adornee = root
+                    box.Size = root.Size * 1.25
+                    box.AlwaysOnTop = true
+                    box.Transparency = 0.58
+                    box.Color3 = Color3.fromRGB(255, 190, 68)
+                    box.ZIndex = 1
+                    box.Parent = root
+                    extras.visualObjects[p] = {box}
+                    extras.visualMeta[p] = {char = char, signature = signature}
+                end
+            end
+        end
+    end
+end
+visualExtras:AddSwitch("ESP Names (All Players)", function(v)
+    roleSettings.allNames = v
+    updateOverview()
+end, {default = false, description = "Extends the existing role name tag to players without a confirmed role"})
+visualExtras:AddSwitch("ESP Peoples (All Players)", function(v)
+    roleSettings.allPlayers = v
+    updateOverview()
+end, {default = false, description = "Uses the existing Role ESP highlight for players without a confirmed role"})
+visualExtras:AddSwitch("ESP Dropped Gun", function(v)
+    farm.gunESP = v
+    if not v then clearGunESP() end
+end, {default = false, description = "Single Gun ESP control in Roles & ESP"})
+visualExtras:AddSwitch("Show HitBox", function(v)
+    extras.espHitbox = v
+    refreshPlayerESP()
+end, {default = false, description = "Visual-only box; does not enlarge real hitboxes"})
+trackExtra(Players.PlayerRemoving, clearESPEntry)
+task.spawn(function()
+    while session.running do
+        if extras.espHitbox then
+            refreshPlayerESP()
+        end
+        task.wait(1.2)
+    end
+end)
+
+local motionSection = visualsTab:AddSection("Movement")
+motionSection:AddSwitch("Player Speed", function(v)
+    extras.walkEnabled = v
+    local _, hum = rootAndHumanoid()
+    if not v and hum and extras.originalWalk then hum.WalkSpeed = extras.originalWalk end
+end, {default = false})
+motionSection:AddSlider("Speed Value", function(v)
+    extras.walkValue = v
+end, {min = 16, max = 100, step = 2, default = 24, suffix = " studs/s"})
+motionSection:AddSwitch("Player Jump Power", function(v)
+    extras.jumpEnabled = v
+    local _, hum = rootAndHumanoid()
+    if not v and hum and extras.originalJump then
+        hum.JumpPower = extras.originalJump
+        if extras.originalUseJumpPower ~= nil then hum.UseJumpPower = extras.originalUseJumpPower end
+    end
+end, {default = false})
+motionSection:AddSlider("Jump Power Value", function(v)
+    extras.jumpValue = v
+end, {min = 50, max = 180, step = 5, default = 60})
+motionSection:AddSwitch("Noclip", function(v)
+    extras.noclip = v
+    farm.permanentNoclip = v
+    if not v and not farm.flyActive then restoreCollision() end
+end, {default = false})
+
+local cameraSection = visualsTab:AddSection("Free Cam | PC")
+local camStatus = cameraSection:AddLabel("Free Cam: OFF")
+local function stopFreeCam()
+    if not extras.freecam then return end
+    extras.freecam = false
+    local camera = Workspace.CurrentCamera
+    if camera then
+        camera.CameraType = extras.oldCameraType or Enum.CameraType.Custom
+        if extras.oldCameraSubject and extras.oldCameraSubject.Parent then
+            camera.CameraSubject = extras.oldCameraSubject
+        end
+    end
+    UserInputService.MouseBehavior = Enum.MouseBehavior.Default
+    camStatus.Text = "Free Cam: OFF"
+end
+local function startFreeCam()
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+    deactivateAim()
+    extras.oldCameraType = camera.CameraType
+    extras.oldCameraSubject = camera.CameraSubject
+    extras.freecamCFrame = camera.CFrame
+    local look = camera.CFrame.LookVector
+    extras.freecamAngles = Vector2.new(math.asin(math.clamp(look.Y, -1, 1)), math.atan2(-look.X, -look.Z))
+    camera.CameraType = Enum.CameraType.Scriptable
+    extras.freecam = true
+    camStatus.Text = "Free Cam: ON | WASD / Q E / right mouse"
+end
+cameraSection:AddSwitch("Free Cam", function(v)
+    if v then startFreeCam() else stopFreeCam() end
+end, {default = false, description = "Right click to look; WASD and Q/E to move"})
+cameraSection:AddSlider("Free Cam Speed", function(v) extras.freecamSpeed = v end,
+    {min = 10, max = 150, step = 5, default = 45})
+trackExtra(RunService.RenderStepped, function(dt)
+    if not extras.freecam or not extras.freecamCFrame then return end
+    local camera = Workspace.CurrentCamera
+    if not camera then return end
+    if UserInputService:IsMouseButtonPressed(Enum.UserInputType.MouseButton2) then
+        local delta = UserInputService:GetMouseDelta()
+        extras.freecamAngles = Vector2.new(
+            math.clamp(extras.freecamAngles.X - delta.Y * .003, -1.48, 1.48),
+            extras.freecamAngles.Y - delta.X * .003
+        )
+    end
+    local pitch, yaw = extras.freecamAngles.X, extras.freecamAngles.Y
+    local rotation = CFrame.Angles(0, yaw, 0) * CFrame.Angles(pitch, 0, 0)
+    local axis = Vector3.zero
+    if not UserInputService:GetFocusedTextBox() then
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then axis = axis + Vector3.new(0, 0, -1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then axis = axis + Vector3.new(0, 0, 1) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then axis = axis + Vector3.new(-1, 0, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then axis = axis + Vector3.new(1, 0, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.E) then axis = axis + Vector3.new(0, 1, 0) end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Q) then axis = axis + Vector3.new(0, -1, 0) end
+    end
+    local pos = extras.freecamCFrame.Position
+    if axis.Magnitude > 0 then pos = pos + rotation:VectorToWorldSpace(axis.Unit) * extras.freecamSpeed * dt end
+    extras.freecamCFrame = CFrame.new(pos) * rotation
+    camera.CFrame = extras.freecamCFrame
+end)
+
+local perfTab = window:AddTab("Performance & Server", {
+    icon = "settings",
+    description = "Graphics, FPS, rejoin and server hop",
+})
+local perfSection = perfTab:AddSection("Graphics")
+local perfStatus = perfSection:AddLabel("Graphics: unchanged | all effects OFF")
+local function refreshPerformance()
+    perfStatus.Text = "Graphics: " .. (extras.fpsBoost and "BOOST " or "")
+        .. (extras.noFog and "NO FOG " or "")
+        .. (extras.plastic and "PLASTIC " or "")
+    if not extras.fpsBoost and not extras.noFog and not extras.plastic then
+        perfStatus.Text = "Graphics: restored"
+    end
+    rebuildGraphics()
+end
+perfSection:AddSwitch("FPS Booster", function(v)
+    extras.fpsBoost = v
+    refreshPerformance()
+end, {default = false, description = "Disables particles and textures locally; may improve FPS"})
+perfSection:AddSwitch("Disable Shadows & Fog", function(v)
+    extras.noFog = v
+    refreshPerformance()
+end, {default = false})
+perfSection:AddSwitch("Smooth Plastic World", function(v)
+    extras.plastic = v
+    refreshPerformance()
+end, {default = false, description = "Replace visible world part materials with Plastic locally"})
+perfSection:AddButton("Reapply FPS Boost", refreshPerformance)
+perfSection:AddLabel("Original graphics are restored when all performance toggles are OFF.")
+local serverSection = perfTab:AddSection("Server")
+serverSection:AddButton("Rejoin Server", function()
+    task.spawn(function()
+        local ok, err = pcall(function()
+            TeleportService:TeleportToPlaceInstance(game.PlaceId, game.JobId, LocalPlayer)
+        end)
+        if not ok then notice("Rejoin", tostring(err)) end
+    end)
+end)
+serverSection:AddButton("Server Hop", function()
+    task.spawn(function()
+        local url = string.format(
+            "https://games.roblox.com/v1/games/%d/servers/Public?sortOrder=Asc&limit=100",
+            game.PlaceId
+        )
+        local ok, response = pcall(function() return HttpService:JSONDecode(game:HttpGet(url)) end)
+        if not ok or type(response) ~= "table" or type(response.data) ~= "table" then
+            notice("Server Hop", "Server list request failed in this executor")
+            return
+        end
+        for _, item in ipairs(response.data) do
+            if type(item.id) == "string" and item.id ~= game.JobId
+                and (item.playing or 0) < (item.maxPlayers or 0) then
+                local okTeleport, err = pcall(function()
+                    TeleportService:TeleportToPlaceInstance(game.PlaceId, item.id, LocalPlayer)
+                end)
+                if not okTeleport then notice("Server Hop", tostring(err)) end
+                return
+            end
+        end
+        notice("Server Hop", "No other non-full server found in this page")
+    end)
+end)
+serverSection:AddLabel("Rejoin/Hop may be blocked by Roblox or your executor.")
+
+local function stopV3Extras()
+    extras.running = false
+    extras.graphicsVersion = extras.graphicsVersion + 1
+    extras.autoKill, extras.flingAll, extras.flingTouch = false, false, false
+    extras.invisible, extras.feRequested = false, false
+    extras.walkEnabled, extras.jumpEnabled, extras.noclip = false, false, false
+    extras.espHitbox = false
+    roleSettings.allPlayers, roleSettings.allNames = false, false
+    extras.fpsBoost, extras.noFog, extras.plastic = false, false, false
+    farm.permanentNoclip = false
+    farm.gunESP = false
+    farm.protection = false
+    stopFreeCam()
+    for p in pairs(extras.visualObjects) do clearESPEntry(p) end
+    restoreAvatar()
+    restoreGraphics()
+    if extras.originalQuality ~= nil then
+        pcall(function() settings().Rendering.QualityLevel = extras.originalQuality end)
+        extras.originalQuality = nil
+    end
+    local root, hum = rootAndHumanoid()
+    if root then root.AssemblyAngularVelocity = Vector3.zero end
+    if hum then
+        if extras.originalWalk ~= nil then hum.WalkSpeed = extras.originalWalk end
+        if extras.originalJump ~= nil then hum.JumpPower = extras.originalJump end
+        if extras.originalUseJumpPower ~= nil then hum.UseJumpPower = extras.originalUseJumpPower end
+    end
+    restoreCollision()
+    restoreFlingCollision()
+    for _, c in ipairs(extras.connections) do pcall(function() c:Disconnect() end) end
+    extras.connections = {}
+end
+
 local previousStopExtras = stopExtras
 stopExtras = function()
+    stopV3Extras()
     antiAFK.enabled = false
     for _, connection in ipairs(antiAFK.connections) do
         connection:Disconnect()
@@ -1911,7 +2411,6 @@ stopExtras = function()
     antiAFK.connections = {}
     deactivateAim()
     aim.enabled = false
-    aim.magicBullet = false -- hook remains inert after Stop
     RunService:UnbindFromRenderStep(RENDER_KEY)
     for _, connection in ipairs(aim.connections) do connection:Disconnect() end
     aim.connections = {}
@@ -1929,4 +2428,4 @@ task.spawn(function()
     session.Stop()
 end)
 
-window:Notify("MM2 Lumen 2.0", "Distributed Fly Farm ready | Aim options OFF | Anti AFK ON", 5)
+window:Notify("MM2 Lumen V4",5)
