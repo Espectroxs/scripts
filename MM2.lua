@@ -12,7 +12,7 @@ local library = loadstring(game:HttpGet(
     true
 ))()
 
-local window = library:AddWindow("MM2 | Lumen Complete V4", {
+local window = library:AddWindow("MM2 | Lumen Private 1.0", {
     main_color = Color3.fromRGB(99, 71, 224),
     size = Vector2.new(715, 545),
     toggle_key = Enum.KeyCode.RightShift,
@@ -2368,6 +2368,211 @@ serverSection:AddButton("Server Hop", function()
     end)
 end)
 serverSection:AddLabel("Rejoin/Hop may be blocked by Roblox or your executor.")
+
+local themeColors = {
+    ["Roxo"] = {
+        accent = Color3.fromRGB(99, 71, 224),
+        pale = Color3.fromRGB(237, 231, 255),
+        header = Color3.fromRGB(99, 71, 224),
+        background = Color3.fromRGB(248, 247, 252),
+        surface = Color3.fromRGB(255, 255, 255),
+        border = Color3.fromRGB(232, 225, 244),
+        text = Color3.fromRGB(48, 39, 67),
+        muted = Color3.fromRGB(139, 129, 158),
+        inactive = Color3.fromRGB(220, 216, 231),
+        green = Color3.fromRGB(68, 153, 121),
+    },
+    ["Preto"] = {
+        accent = Color3.fromRGB(194, 195, 210),
+        pale = Color3.fromRGB(49, 49, 53),
+        header = Color3.fromRGB(31, 31, 35),
+        background = Color3.fromRGB(19, 19, 22),
+        surface = Color3.fromRGB(31, 31, 35),
+        border = Color3.fromRGB(62, 62, 70),
+        text = Color3.fromRGB(242, 242, 245),
+        muted = Color3.fromRGB(171, 171, 181),
+        inactive = Color3.fromRGB(73, 73, 81),
+        green = Color3.fromRGB(93, 211, 151),
+    },
+    ["Amarelo"] = {
+        accent = Color3.fromRGB(255, 208, 57),
+        pale = Color3.fromRGB(58, 49, 25),
+        header = Color3.fromRGB(83, 64, 18),
+        background = Color3.fromRGB(23, 22, 18),
+        surface = Color3.fromRGB(36, 33, 26),
+        border = Color3.fromRGB(82, 69, 42),
+        text = Color3.fromRGB(255, 250, 233),
+        muted = Color3.fromRGB(198, 183, 149),
+        inactive = Color3.fromRGB(95, 82, 58),
+        green = Color3.fromRGB(129, 211, 132),
+    },
+    ["Claro"] = {
+        accent = Color3.fromRGB(82, 106, 205),
+        pale = Color3.fromRGB(230, 237, 255),
+        header = Color3.fromRGB(81, 105, 193),
+        background = Color3.fromRGB(248, 250, 254),
+        surface = Color3.fromRGB(255, 255, 255),
+        border = Color3.fromRGB(222, 229, 241),
+        text = Color3.fromRGB(40, 49, 67),
+        muted = Color3.fromRGB(116, 128, 151),
+        inactive = Color3.fromRGB(214, 223, 237),
+        green = Color3.fromRGB(57, 152, 105),
+    },
+    ["Escuro"] = {
+        accent = Color3.fromRGB(132, 146, 255),
+        pale = Color3.fromRGB(42, 49, 72),
+        header = Color3.fromRGB(31, 37, 55),
+        background = Color3.fromRGB(19, 23, 33),
+        surface = Color3.fromRGB(29, 34, 47),
+        border = Color3.fromRGB(57, 65, 85),
+        text = Color3.fromRGB(237, 239, 252),
+        muted = Color3.fromRGB(159, 171, 198),
+        inactive = Color3.fromRGB(69, 77, 98),
+        green = Color3.fromRGB(87, 215, 161),
+    },
+    ["Noite Dark"] = {
+        accent = Color3.fromRGB(108, 165, 255),
+        pale = Color3.fromRGB(22, 42, 74),
+        header = Color3.fromRGB(13, 29, 54),
+        background = Color3.fromRGB(8, 15, 29),
+        surface = Color3.fromRGB(16, 27, 46),
+        border = Color3.fromRGB(39, 62, 91),
+        text = Color3.fromRGB(232, 242, 255),
+        muted = Color3.fromRGB(143, 173, 209),
+        inactive = Color3.fromRGB(43, 68, 99),
+        green = Color3.fromRGB(100, 226, 183),
+    },
+    ["Preto Puro"] = {
+        accent = Color3.fromRGB(255, 255, 255),
+        pale = Color3.fromRGB(25, 25, 25),
+        header = Color3.fromRGB(0, 0, 0),
+        background = Color3.fromRGB(0, 0, 0),
+        surface = Color3.fromRGB(9, 9, 9),
+        border = Color3.fromRGB(54, 54, 54),
+        text = Color3.fromRGB(255, 255, 255),
+        muted = Color3.fromRGB(180, 180, 180),
+        inactive = Color3.fromRGB(63, 63, 63),
+        green = Color3.fromRGB(109, 227, 165),
+    },
+}
+
+local function themeAncestor(instance, name)
+    local parent = instance.Parent
+    while parent and parent ~= window.Instance do
+        if parent.Name == name then return true end
+        parent = parent.Parent
+    end
+    return false
+end
+
+local function applyInterfaceTheme(name)
+    local palette = themeColors[name]
+    if not palette or not window or window._dead or not window.Instance then return end
+    environment.MM2LumenThemeChoice = name
+    window._theme = palette
+    for callback in pairs(window._paints or {}) do
+        pcall(callback, palette)
+    end
+    local root = window.Instance
+    root.BackgroundColor3 = palette.background
+    for _, object in ipairs(root:GetDescendants()) do
+        local objectName = object.Name
+        if object:IsA("GuiObject") then
+            if objectName == "TopBar" or objectName == "SquareBottom" then
+                object.BackgroundColor3 = palette.header
+            elseif objectName == "Sidebar" or objectName == "ProfileCard" or objectName == "QuickAccess" then
+                object.BackgroundColor3 = palette.surface
+            elseif objectName == "Folder" or objectName == "Switch" or objectName == "Dropdown" or objectName == "Slider" or objectName == "Keybind" or objectName == "TextInput" or objectName == "ColorPicker" or objectName == "Code" then
+                object.BackgroundColor3 = palette.surface
+            elseif objectName == "Search" and object.Parent and object.Parent.Name == "Sidebar" then
+                object.BackgroundColor3 = palette.background
+            elseif objectName == "Intro" or objectName == "Badge" then
+                object.BackgroundColor3 = palette.pale
+            elseif objectName == "Divider" then
+                object.BackgroundColor3 = palette.border
+            end
+        end
+        if object:IsA("TextLabel") and not themeAncestor(object, "TopBar")
+            and not themeAncestor(object, "TabButtons") and not themeAncestor(object, "ExecutorProfile")
+            and not themeAncestor(object, "Status") then
+            if objectName == "Title" then
+                local parent = object.Parent
+                if parent and parent.Name == "Button" and parent.Parent and parent.Parent.Name == "Folder" then
+                    object.TextColor3 = palette.accent
+                else
+                    object.TextColor3 = palette.text
+                end
+            elseif objectName == "Heading" or objectName == "DisplayName" then
+                object.TextColor3 = palette.text
+            elseif objectName == "Value" then
+                object.TextColor3 = object.Text == "Choose an option" and palette.muted or palette.accent
+            elseif themeAncestor(object, "Badge") then
+                object.TextColor3 = palette.accent
+            elseif objectName == "Label" or objectName == "EmptyState" or objectName == "Username"
+                or object.TextSize <= 12 then
+                object.TextColor3 = palette.muted
+            else
+                object.TextColor3 = palette.text
+            end
+        elseif object:IsA("TextBox") then
+            object.TextColor3 = palette.text
+            object.PlaceholderColor3 = palette.muted
+        elseif object:IsA("UIStroke") then
+            local parent = object.Parent
+            if parent and (parent == root or parent.Name == "Folder" or parent.Name == "Switch"
+                or parent.Name == "Dropdown" or parent.Name == "Slider" or parent.Name == "Keybind"
+                or parent.Name == "ProfileCard" or parent.Name == "QuickAccess" or parent.Name == "Search") then
+                object.Color = palette.border
+            end
+        end
+    end
+    local sidebar = root:FindFirstChild("Body")
+    sidebar = sidebar and sidebar:FindFirstChild("Sidebar")
+    local profile = sidebar and sidebar:FindFirstChild("ExecutorProfile")
+    if profile then
+        profile.BackgroundColor3 = palette.pale
+        local gradient = profile:FindFirstChildOfClass("UIGradient")
+        if gradient then
+            gradient.Color = ColorSequence.new(palette.pale, palette.surface)
+        end
+        local frameStroke = profile:FindFirstChildOfClass("UIStroke")
+        if frameStroke then frameStroke.Color = palette.accent end
+        local avatarBorder = profile:FindFirstChild("AvatarBorder")
+        if avatarBorder then
+            avatarBorder.BackgroundColor3 = palette.accent
+            local avatar = avatarBorder:FindFirstChild("Avatar")
+            if avatar then avatar.BackgroundColor3 = palette.surface end
+        end
+        local nickname = profile:FindFirstChild("DisplayName")
+        if nickname then nickname.TextColor3 = palette.text end
+        local username = profile:FindFirstChild("Username")
+        if username then username.TextColor3 = palette.muted end
+    end
+    if window._bubble and window._bubble.Parent then
+        window._bubble.BackgroundColor3 = palette.accent
+    end
+end
+
+local customizeTab = window:AddTab("Customization", {
+    icon = "settings",
+    description = "Choose the appearance of the entire UI",
+})
+local themeSection = customizeTab:AddSection("UI Themes")
+local currentTheme = themeSection:AddLabel("Current theme: Roxo")
+local themeDropdown = themeSection:AddDropdown("Select UI Theme", function(value)
+    applyInterfaceTheme(value)
+    currentTheme.Text = "Current theme: " .. value
+end, {max_visible = 7})
+for _, themeName in ipairs({"Roxo", "Preto", "Amarelo", "Claro", "Escuro", "Noite Dark", "Preto Puro"}) do
+    themeDropdown:Add(themeName)
+end
+local initialTheme = themeColors[environment.MM2LumenThemeChoice] and environment.MM2LumenThemeChoice or "Roxo"
+themeDropdown:Set(initialTheme, true)
+currentTheme.Text = "Current theme: " .. initialTheme
+applyInterfaceTheme(initialTheme)
+themeSection:AddButton("Reset to Purple", function()
+    themeDropdown:Set("Roxo")
+end)
 
 local function stopV3Extras()
     extras.running = false
