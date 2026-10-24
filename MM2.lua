@@ -12,7 +12,7 @@ local library = loadstring(game:HttpGet(
     true
 ))()
 
-local window = library:AddWindow("MM2 | Lumen Private 1.0", {
+local window = library:AddWindow("MM2 | Lumen Seasonal V8", {
     main_color = Color3.fromRGB(99, 71, 224),
     size = Vector2.new(715, 545),
     toggle_key = Enum.KeyCode.RightShift,
@@ -426,8 +426,17 @@ local farm = {
     permanentNoclip = false,
     gunESP = false,
     premiumRouting = true,
-    speed = 42,
+    speed = 20,
     targetStrategy = "Distributed",
+    proneDuringFarm = true,
+    proneJoint = nil,
+    proneOriginalC0 = nil,
+    flyVelocity = nil,
+    stuckCount = 0,
+    corrections = 0,
+    correctionWindow = 0,
+    safetyPauseUntil = 0,
+    safetyReason = nil,
     avoidPlayers = true,
     avoidRadius = 30,
     selectionRound = 0,
@@ -446,6 +455,7 @@ local farm = {
     bagMax = nil,
     bagFull = false,
     roundActive = nil,
+    roundEndedAt = 0,
     coins = {},
     skipped = {},
     collectedEstimate = 0,
@@ -486,20 +496,43 @@ local function rootAndHumanoid()
     return root, humanoid, character
 end
 
+local function setProneVisual(enabled)
+    local motor = farm.proneJoint
+    if motor and farm.proneOriginalC0 and motor.Parent then
+        pcall(function() motor.C0 = farm.proneOriginalC0 end)
+    end
+    farm.proneJoint = nil
+    farm.proneOriginalC0 = nil
+    if not enabled or not farm.proneDuringFarm then return end
+    local root, humanoid, character = rootAndHumanoid()
+    if not root or not humanoid or not character then return end
+    local lowerTorso = character:FindFirstChild("LowerTorso")
+    local joint = (lowerTorso and lowerTorso:FindFirstChild("Root"))
+        or root:FindFirstChild("RootJoint")
+    if not joint or not joint:IsA("Motor6D") then return end
+    farm.proneJoint = joint
+    farm.proneOriginalC0 = joint.C0
+    pcall(function()
+        joint.C0 = farm.proneOriginalC0 * CFrame.Angles(math.rad(-75), 0, 0)
+    end)
+end
+
 local function cancelMove()
     farm.moveToken = farm.moveToken + 1
     farm.moveTarget = nil
     farm.flyActive = false
     farm.noclipUntil = 0
 
+    if farm.flyVelocity then pcall(function() farm.flyVelocity:Destroy() end) end
     if farm.flyForce then pcall(function() farm.flyForce:Destroy() end) end
     if farm.flyAttachment then pcall(function() farm.flyAttachment:Destroy() end) end
-    farm.flyForce, farm.flyAttachment = nil, nil
+    farm.flyVelocity, farm.flyForce, farm.flyAttachment = nil, nil, nil
 
     local root = farm.flyRoot
     if root and root.Parent then
         pcall(function()
-            root.AssemblyLinearVelocity = Vector3.zero
+            local current = root.AssemblyLinearVelocity
+            root.AssemblyLinearVelocity = Vector3.new(0, math.min(0, current.Y), 0)
             root.AssemblyAngularVelocity = Vector3.zero
         end)
     end
@@ -511,9 +544,6 @@ local function cancelMove()
             end
             if farm.originalPlatformStand ~= nil then
                 humanoid.PlatformStand = farm.originalPlatformStand
-            end
-            if not humanoid.PlatformStand and humanoid.Health > 0 then
-                humanoid:ChangeState(Enum.HumanoidStateType.GettingUp)
             end
         end)
     end
@@ -716,15 +746,15 @@ local function findDistributedCoin(origin)
                 score = score + ((hash * 7 + farm.selectionRound * 113 + LocalPlayer.UserId) % 151) * 0.7
             else
 
-                score = distance * 0.17 + personal * 20
-                if slot ~= ownIndex then score = score + 170 end
+                score = distance * 0.52 + personal * 18
+                if slot ~= ownIndex then score = score + 42 end
             end
 
             if farm.avoidPlayers then
                 for _, otherPosition in ipairs(competitors) do
                     local separation = (position - otherPosition).Magnitude
                     if separation < farm.avoidRadius then
-                        score = score + (farm.avoidRadius - separation) * 7 + 80
+                        score = score + (farm.avoidRadius - separation) * 3 + 40
                     end
                 end
             end
@@ -739,90 +769,173 @@ local function findDistributedCoin(origin)
 end
 
 local function canFarmCoins()
-    if not session.running or not farm.autoCoins or farm.bagFull or farm.roundActive == false then
+    if not session.running or not farm.autoCoins or farm.bagFull
+        or farm.roundActive == false or os.clock() < farm.safetyPauseUntil then
         return false
     end
     return rootAndHumanoid() ~= nil
 end
 
 local function beginFly(root, humanoid)
+    if farm.flyActive then return false end
+    if not root or root.Anchored or not humanoid or humanoid.Health <= 0 then return false end
     farm.flyRoot = root
     farm.moveHumanoid = humanoid
     farm.originalAutoRotate = humanoid.AutoRotate
     farm.originalPlatformStand = humanoid.PlatformStand
     farm.flyActive = true
     humanoid.AutoRotate = false
-    humanoid.PlatformStand = true
-
     local attachment = Instance.new("Attachment")
     attachment.Name = "MM2LumenFlightAttachment"
     attachment.Parent = root
-    local force = Instance.new("VectorForce")
-    force.Name = "MM2LumenFlightStabilizer"
-    force.Attachment0 = attachment
-    force.RelativeTo = Enum.ActuatorRelativeTo.World
-    force.ApplyAtCenterOfMass = true
-    force.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity, 0)
-    force.Parent = root
+    local velocity = Instance.new("LinearVelocity")
+    velocity.Name = "MM2LumenControlledVelocity"
+    velocity.Attachment0 = attachment
+    velocity.RelativeTo = Enum.ActuatorRelativeTo.World
+    velocity.VelocityConstraintMode = Enum.VelocityConstraintMode.Vector
+    velocity.ForceLimitsEnabled = false
+    velocity.VectorVelocity = Vector3.zero
+    velocity.Parent = root
+    local lift = Instance.new("VectorForce")
+    lift.Name = "MM2LumenLift"
+    lift.Attachment0 = attachment
+    lift.RelativeTo = Enum.ActuatorRelativeTo.World
+    lift.ApplyAtCenterOfMass = true
+    lift.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity, 0)
+    lift.Parent = root
     farm.flyAttachment = attachment
-    farm.flyForce = force
+    farm.flyVelocity = velocity
+    farm.flyForce = lift
+    if farm.proneDuringFarm and not farm.proneJoint then setProneVisual(true) end
+    return true
+end
+
+local function finitePosition(position)
+    if typeof(position) ~= "Vector3" then return false end
+    if position.X ~= position.X or position.Y ~= position.Y or position.Z ~= position.Z then return false end
+    return math.abs(position.X) < 15000 and math.abs(position.Y) < 15000 and math.abs(position.Z) < 15000
 end
 
 local function moveToCoin(record)
     local root, humanoid, character = rootAndHumanoid()
     if not root or not validCoin(record) then return end
+    local goal = record.part.Position + Vector3.new(0, 1.15, 0)
+    if not finitePosition(goal) or not finitePosition(root.Position) then
+        farm.skipped[record.node] = os.clock() + 5
+        return
+    end
+    local travel = (root.Position - goal).Magnitude
+    if travel > 2500 then
+        farm.skipped[record.node] = os.clock() + 5
+        return
+    end
     local token = farm.moveToken
     farm.moveTarget = record.part
-    beginFly(root, humanoid)
-
-    local start = os.clock()
-    local travel = (root.Position - record.part.Position).Magnitude
-    local deadline = start + math.clamp(travel / math.max(15, farm.speed) * 3 + 5, 6, 35)
-    local closeSince
-    local originalRotation = root.CFrame.Rotation
-
+    local startedOK, startedFlight = pcall(beginFly, root, humanoid)
+    if not startedOK or not startedFlight then
+        if farm.flyActive then cancelMove() end
+        farm.moveTarget = nil
+        farm.skipped[record.node] = os.clock() + 3
+        farmStatus.Text = "Farm: flight unavailable, retrying another item"
+        return
+    end
+    local started = os.clock()
+    local deadline = started + math.clamp(travel / math.max(12, farm.speed) * 2 + 4, 5, 150)
+    local closeSince = nil
+    local lastPosition = root.Position
+    local bestDistance = travel
+    local lastProgress = started
+    local lastMovement = started
+    local lastStatus = 0
+    local result = "interrupted"
     while session.running and token == farm.moveToken and canFarmCoins()
         and validCoin(record) and root.Parent == character and os.clock() < deadline do
         local dt = RunService.Heartbeat:Wait()
-
-        dt = math.clamp(type(dt) == "number" and dt or (1 / 60), 1 / 240, 0.07)
+        dt = math.clamp(type(dt) == "number" and dt or (1 / 60), 1 / 240, 0.2)
         if token ~= farm.moveToken or not canFarmCoins() or not validCoin(record) then break end
-
-        local goal = record.part.Position + Vector3.new(0, 1, 0)
-        local delta = goal - root.Position
+        local now = os.clock()
+        goal = record.part.Position + Vector3.new(0, 1.15, 0)
+        local position = root.Position
+        if not finitePosition(goal) or not finitePosition(position) then
+            result = "unsafe"
+            break
+        end
+        local delta = goal - position
         local dist = delta.Magnitude
-        if dist > 0.8 then
-            closeSince = nil
-            local step = math.min(dist, farm.speed * dt)
-            local nextPosition = root.Position + delta.Unit * step
-            root.CFrame = CFrame.new(nextPosition) * originalRotation
-            root.AssemblyLinearVelocity = Vector3.zero
-            root.AssemblyAngularVelocity = Vector3.zero
+        local jumped = (position - lastPosition).Magnitude
+        local jumpLimit = math.max(15, farm.speed * dt * 4 + 10)
+        if jumped > jumpLimit then
+            if now - farm.correctionWindow > 25 then
+                farm.correctionWindow = now
+                farm.corrections = 0
+            end
+            farm.corrections = farm.corrections + 1
+            result = "correction"
+            if farm.corrections >= 3 then
+                farm.safetyPauseUntil = math.huge
+                farm.safetyReason = "server position corrections"
+            else
+                farm.safetyPauseUntil = now + 2.5
+            end
+            break
+        end
+        if jumped > 0.12 then lastMovement = now end
+        if dist < bestDistance - 0.65 then
+            bestDistance = dist
+            lastProgress = now
+        end
+        if dist <= 2.3 then
+            if not closeSince then closeSince = now end
+            if now - closeSince >= 0.25 then
+                result = "reached"
+                break
+            end
         else
-
-            if not closeSince then closeSince = os.clock() end
-            root.CFrame = CFrame.new(goal) * originalRotation
-            root.AssemblyLinearVelocity = Vector3.zero
-            if os.clock() - closeSince >= 0.32 then break end
+            closeSince = nil
         end
-
-        if farm.flyForce and farm.flyForce.Parent then
-            farm.flyForce.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity, 0)
+        if (now - lastMovement > 1.25 and dist > 3.5)
+            or (now - lastProgress > 2.35 and dist > 4) then
+            farm.stuckCount = farm.stuckCount + 1
+            result = "stuck"
+            break
         end
-        if os.clock() - farm.lastBagPoll > 0.15 and farm.pollBag then
-            farm.lastBagPoll = os.clock()
+        lastPosition = position
+        if farm.flyVelocity and farm.flyVelocity.Parent then
+            local speed = math.min(farm.speed, dist * 5)
+            local direction = dist > 0.05 and delta.Unit or Vector3.zero
+            farm.flyVelocity.VectorVelocity = direction * speed
+            if farm.flyForce and farm.flyForce.Parent then
+                farm.flyForce.Force = Vector3.new(0, root.AssemblyMass * Workspace.Gravity, 0)
+            end
+        else
+            result = "lost controller"
+            break
+        end
+        if now - farm.lastBagPoll >= 0.15 and farm.pollBag then
+            farm.lastBagPoll = now
             farm.pollBag()
         end
-        farmStatus.Text = string.format("Flying to %s (%d studs)", record.label,
-            math.floor(dist))
+        if now - lastStatus >= 0.35 then
+            lastStatus = now
+            farmStatus.Text = string.format("Farm: %s | %d studs | %d speed", record.label, math.floor(dist), farm.speed)
+        end
     end
-
+    if os.clock() >= deadline and result == "interrupted" then result = "timeout" end
     if token == farm.moveToken then
+        if farm.flyVelocity and farm.flyVelocity.Parent then
+            farm.flyVelocity.VectorVelocity = Vector3.zero
+        end
         if validCoin(record) and not farm.bagFull then
-
-            farm.skipped[record.node] = os.clock() + 2.5
+            farm.skipped[record.node] = os.clock() + (result == "reached" and 2.2 or 4)
         end
         cancelMove()
+        if result == "stuck" or result == "timeout" or result == "lost controller" then
+            farmStatus.Text = "Farm: changing coin (movement stalled)"
+        elseif result == "correction" then
+            farmStatus.Text = farm.safetyPauseUntil == math.huge
+                and "Farm paused: repeated position corrections"
+                or "Farm: position corrected, short cooldown"
+        end
     end
 end
 
@@ -830,23 +943,32 @@ task.spawn(function()
     while session.running and not window._dead do
         if farm.pollBag then farm.pollBag() end
         if canFarmCoins() then
-            if os.clock() - farm.lastScan >= 1.6 then scanCoins() end
+            if os.clock() - farm.lastScan >= 1.1 then scanCoins() end
             local root = rootAndHumanoid()
             if root then
                 local item = findDistributedCoin(root.Position)
                 if item then
                     moveToCoin(item)
                 else
-                    farmStatus.Text = "Farm: waiting for valid items"
-                    task.wait(0.4)
+                    farmStatus.Text = "Farm: searching coins across the map"
+                    farm.lastScan = 0
+                    task.wait(0.3)
                 end
             end
         else
             if farm.moveTarget then cancelMove() end
+            if farm.proneJoint and (not farm.autoCoins or farm.bagFull
+                or farm.roundActive == false or farm.safetyPauseUntil == math.huge) then
+                setProneVisual(false)
+            end
             if farm.autoCoins then
-                farmStatus.Text = farm.bagFull and "Farm: BAG FULL - stopped"
+                farmStatus.Text = os.clock() < farm.safetyPauseUntil
+                    and (farm.safetyPauseUntil == math.huge
+                        and "Farm paused: position corrections (toggle OFF/ON)"
+                        or "Farm: retrying after position correction")
+                    or (farm.bagFull and "Farm: BAG FULL - stopped"
                     or (farm.roundActive == false and "Farm: next round"
-                        or "Farm: waiting to spawn")
+                        or "Farm: waiting to spawn"))
             else
                 farmStatus.Text = "Farm: disabled"
             end
@@ -1124,8 +1246,9 @@ local function applyBag(current, maximum, fullIcon, source)
         farm.bagFull = true
         farm.bagSource = "MM2 Full indicator"
     end
-    if farm.bagFull and farm.flyActive then
-        cancelMove()
+    if farm.bagFull then
+        if farm.flyActive then cancelMove() end
+        setProneVisual(false)
         restoreCollision()
     end
 end
@@ -1179,7 +1302,9 @@ task.spawn(function()
     if ended and ended:IsA("RemoteEvent") and session.running then
         remember(ended.OnClientEvent:Connect(function()
             farm.roundActive = false
+            farm.roundEndedAt = os.clock()
             cancelMove()
+            setProneVisual(false)
             clearCoinTracers()
         end))
     end
@@ -1187,6 +1312,9 @@ end)
 
 remember(LocalPlayer.CharacterAdded:Connect(function()
     cancelMove()
+    farm.roundActive = nil
+    resetBag("character respawn")
+    setProneVisual(false)
     restoreCollision()
     clearCoinTracers()
     farm.noclipUntil = 0
@@ -1199,11 +1327,17 @@ farmSection:AddSwitch("Auto Farm Coins & Items", function(value)
     farm.autoCoins = value
     if not value then
         cancelMove()
+        setProneVisual(false)
         restoreCollision()
     else
+        farm.safetyPauseUntil = 0
+        farm.safetyReason = nil
+        farm.corrections = 0
+        farm.correctionWindow = os.clock()
+        farm.stuckCount = 0
         farm.lastScan = 0
     end
-end, { default = false, description = "Fly directly to real coins/items, with automatic NoClip and bag-stop" })
+end, { default = false, description = "Continuous physical flight, recovers from stalled routes, stops when the bag is full" })
 
 local premiumSection = farmTab:AddSection("Premium Farm | Global Coin Routing")
 premiumSection:AddLabel("Uses the main Auto Farm switch; no duplicate auto-farm engine")
@@ -1237,8 +1371,19 @@ farmSection:AddSwitch("Auto XP / Survival", function(value)
 end, { default = false, description = "Evade a nearby Murderer; Anti AFK now has its own tab" })
 
 farmSection:AddSlider("Farm Fly Speed", function(value)
-    farm.speed = math.clamp(value, 16, 100)
-end, { min = 16, max = 100, step = 2, default = 42, suffix = " studs/s" })
+    farm.speed = math.clamp(value, 12, 32)
+
+end, { min = 12, max = 32, step = 2, default = 20, suffix = " studs/s" })
+
+farmSection:AddSwitch("Prone Visual During Farming", function(value)
+    farm.proneDuringFarm = value
+    setProneVisual(false)
+    if value and farm.autoCoins and not farm.bagFull then
+        setProneVisual(true)
+    end
+end, { default = true, description = "Lies the body down visually; does not change server hitboxes or block knife damage" })
+
+farmSection:AddLabel("The server controls movement validation. No farm speed guarantees immunity from error 267")
 
 farmSection:AddSlider("Coin Bag Limit (Elite = 50)", function(value)
     farm.bagLimit = math.clamp(math.floor(value), 40, 50)
@@ -1304,6 +1449,7 @@ stopExtras = function()
     farm.autoCoins, farm.coinTracer, farm.survivalXP = false, false, false
     farm.protection, farm.gunESP = false, false
     cancelMove()
+    setProneVisual(false)
     restoreCollision()
     restoreFlingCollision()
     clearCoinTracers()
@@ -1318,301 +1464,62 @@ end
 session.Farming = farm
 
 local UserInputService = game:GetService("UserInputService")
-local aimTab = window:AddTab("Aim Lock", {
-    icon = "bolt",
-    description = "Murderer / Sheriff target only | manual activation",
-})
-
-local aim = {
-    enabled = false,
-    active = false,
-    autoAttack = false,
-    autoEquip = false,
-    showTarget = false,
-    lockedPlayer = nil,
-    highlighter = nil,
-    attackAt = 0,
-    equipAt = 0,
-    lastUiAt = 0,
-    attackCooldown = 1.25,
-    connections = {},
-}
-local aimSection = aimTab:AddSection("Aim Lock | Only Murderer & Sheriff")
-local aimStatus = aimSection:AddLabel("Aim: OFF | Press your key after enabling")
-local aimRoleStatus = aimSection:AddLabel("Your combat role: checking...")
-local aimTargetStatus = aimSection:AddLabel("Target: none")
-local aimAttackStatus = aimSection:AddLabel("Attack: manual")
-
-local function aimConnect(signal, fn)
-    local c = signal:Connect(fn)
-    table.insert(aim.connections, c)
-    return c
-end
-local function resetAimTarget()
-    aim.lockedPlayer = nil
-    if aim.highlighter then aim.highlighter:Destroy() end
-    aim.highlighter = nil
-end
-local function deactivateAim()
-    aim.active = false
-    resetAimTarget()
-end
 local function isAlive(player)
     local char = player and player.Character
     local hum = char and char:FindFirstChildOfClass("Humanoid")
     local root = char and (char:FindFirstChild("HumanoidRootPart") or char:FindFirstChild("Head"))
     return hum ~= nil and hum.Health > 0 and root ~= nil
 end
+
 local function detectLocalCombatRole()
     local role, alive = getPlayerRole(LocalPlayer)
     if not alive then return nil end
     if role == "Murderer" then return "Murderer" end
     if role == "Sheriff" or role == "Hero" then return "Sheriff" end
-
-    if role ~= "Unknown" and role ~= "Innocent" then return nil end
     for _, parent in ipairs({LocalPlayer.Character, LocalPlayer:FindFirstChildOfClass("Backpack")}) do
         if parent then
             for _, tool in ipairs(parent:GetChildren()) do
                 if tool:IsA("Tool") then
-                    local n = tool.Name:lower()
-                    if n:find("knife", 1, true) then return "Murderer" end
-                    if n:find("gun", 1, true) or n:find("revolver", 1, true)
-                        or n:find("pistol", 1, true) then return "Sheriff" end
+                    local name = tool.Name:lower()
+                    if name:find("knife", 1, true) then return "Murderer" end
+                    if name:find("gun", 1, true) or name:find("revolver", 1, true) or name:find("pistol", 1, true) then
+                        return "Sheriff"
+                    end
                 end
             end
         end
     end
     return nil
 end
-local function targetRoleValid(player, localRole)
-    if player == LocalPlayer or not isAlive(player) then return false end
-    local targetRole, alive = getPlayerRole(player)
-    if not alive then return false end
-    if localRole == "Sheriff" then return targetRole == "Murderer" end
-    if localRole == "Murderer" then
-        return targetRole == "Sheriff" or targetRole == "Hero"
-    end
-    return false
-end
-local function getAimPart(player)
-    local character = player and player.Character
-    return character and (character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart"))
-end
-local function chooseRoleTarget(myRole, camera)
-    local best, bestScore
-    for _, player in ipairs(Players:GetPlayers()) do
-        if targetRoleValid(player, myRole) then
-            local part = getAimPart(player)
-            if part then
-                local vp, onScreen = camera:WorldToViewportPoint(part.Position)
-                local distance = (part.Position - camera.CFrame.Position).Magnitude
 
-                local center = camera.ViewportSize * 0.5
-                local pixel = (Vector2.new(vp.X, vp.Y) - center).Magnitude
-                local score = (onScreen and vp.Z > 0) and pixel or (100000 + distance)
-                if not bestScore or score < bestScore then
-                    best, bestScore = player, score
-                end
-            end
-        end
-    end
-    return best
-end
-local function showLockedTarget()
-    if not aim.showTarget or not aim.lockedPlayer or not aim.lockedPlayer.Character then
-        if aim.highlighter then aim.highlighter:Destroy() end
-        aim.highlighter = nil
-        return
-    end
-    local char = aim.lockedPlayer.Character
-    if aim.highlighter and aim.highlighter.Parent == char then return end
-    if aim.highlighter then aim.highlighter:Destroy() end
-    local h = Instance.new("Highlight")
-    h.Name = "MM2LumenTargetV3"
-    h.Adornee = char
-    h.FillTransparency = 0.75
-    h.OutlineTransparency = 0
-    h.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    h.FillColor = Color3.fromRGB(255, 80, 185)
-    h.OutlineColor = Color3.fromRGB(255, 255, 255)
-    h.Parent = char
-    aim.highlighter = h
-end
-local function matchingWeapon(tool, role)
-    if not tool or not tool:IsA("Tool") then return false end
-    local n = tool.Name:lower()
-    if role == "Murderer" then return n:find("knife", 1, true) ~= nil end
-    return n:find("gun", 1, true) ~= nil or n:find("pistol", 1, true) ~= nil
-        or n:find("revolver", 1, true) ~= nil
-end
+local combatEquipAt = 0
 local function findWeapon(role, equipIfNeeded)
-    local char = LocalPlayer.Character
-    if not char then return nil end
-    for _, obj in ipairs(char:GetChildren()) do
-        if matchingWeapon(obj, role) then return obj end
+    local character = LocalPlayer.Character
+    if not character then return nil end
+    local function matches(obj)
+        if not obj:IsA("Tool") then return false end
+        local n = obj.Name:lower()
+        if role == "Murderer" then return n:find("knife", 1, true) ~= nil end
+        return n:find("gun", 1, true) ~= nil or n:find("pistol", 1, true) ~= nil
+            or n:find("revolver", 1, true) ~= nil
     end
-    if equipIfNeeded and os.clock() - aim.equipAt > 0.7 then
+    for _, obj in ipairs(character:GetChildren()) do
+        if matches(obj) then return obj end
+    end
+    if equipIfNeeded and os.clock() - combatEquipAt > 0.7 then
         local backpack = LocalPlayer:FindFirstChildOfClass("Backpack")
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if backpack and hum and hum.Health > 0 then
-            for _, obj in ipairs(backpack:GetChildren()) do
-                if matchingWeapon(obj, role) then
-                    aim.equipAt = os.clock()
-                    pcall(function() hum:EquipTool(obj) end)
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+        if backpack and humanoid and humanoid.Health > 0 then
+            for _, tool in ipairs(backpack:GetChildren()) do
+                if matches(tool) then
+                    combatEquipAt = os.clock()
+                    pcall(function() humanoid:EquipTool(tool) end)
                     break
                 end
             end
         end
     end
     return nil
-end
-local function sendGunClick(camera, point)
-    local v, vis = camera:WorldToViewportPoint(point)
-    if not vis then return false end
-    local vim
-    pcall(function() vim = game:GetService("VirtualInputManager") end)
-    if vim then
-        local ok = pcall(function()
-            vim:SendMouseButtonEvent(v.X, v.Y, 0, true, game, 0)
-            vim:SendMouseButtonEvent(v.X, v.Y, 0, false, game, 0)
-        end)
-        if ok then return true end
-    end
-    if type(mouse1click) == "function" then return pcall(mouse1click) end
-    return false
-end
-local function sendKnifeThrow()
-    local vim
-    pcall(function() vim = game:GetService("VirtualInputManager") end)
-    if vim then
-        return pcall(function()
-            vim:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-            task.delay(0.12, function()
-                pcall(function() vim:SendKeyEvent(false, Enum.KeyCode.E, false, game) end)
-            end)
-        end)
-    end
-    if type(keypress) == "function" and type(keyrelease) == "function" then
-        return pcall(function()
-            keypress(0x45)
-            task.delay(0.12, function() pcall(keyrelease, 0x45) end)
-        end)
-    end
-    return false
-end
-local function visibleShot(camera, player, point)
-    local param = RaycastParams.new()
-    param.FilterType = Enum.RaycastFilterType.Exclude
-    param.FilterDescendantsInstances = {LocalPlayer.Character}
-    local v = point - camera.CFrame.Position
-    local hit = Workspace:Raycast(camera.CFrame.Position, v, param)
-    return not hit or (player.Character and hit.Instance:IsDescendantOf(player.Character))
-end
-local function useAimWeapon(role, camera, point)
-    if window._visible or UserInputService:GetFocusedTextBox() then return false end
-    local tool = findWeapon(role, aim.autoEquip)
-    if not tool then return false end
-    if role == "Murderer" then return sendKnifeThrow() end
-    if not sendGunClick(camera, point) then
-        return pcall(function() tool:Activate() end)
-    end
-    return true
-end
-
-aimSection:AddSwitch("Enable Aim Lock", function(v)
-    aim.enabled = v
-    if not v then deactivateAim() end
-end, {default = false, description = "OFF on startup; choose when to activate"})
-local aimKey = aimSection:AddKeybind("Toggle Aim Key (PC)", function()
-    if not aim.enabled or not session.running then return end
-    if aim.active then deactivateAim() else aim.active = true; aim.attackAt = 0 end
-end, {standard = Enum.KeyCode.F, active_when_hidden = true, allow_mouse = true})
-aimSection:AddSwitch("Auto Shoot / Throw", function(v)
-    aim.autoAttack = v
-end, {default = false, description = "OFF on startup; only when target is locked and visible"})
-aimSection:AddSwitch("Auto Equip Weapon", function(v)
-    aim.autoEquip = v
-end, {default = false})
-aimSection:AddSwitch("Highlight Locked Player", function(v)
-    aim.showTarget = v
-    showLockedTarget()
-end, {default = false})
-aimSection:AddSlider("Shot / Throw Interval", function(v)
-    aim.attackCooldown = v / 100
-end, {min = 65, max = 300, step = 5, default = 125, suffix = " x0.01s"})
-aimSection:AddLabel("Sheriff aims ONLY at Murderer. Murderer aims ONLY at Sheriff/Hero.")
-aimSection:AddLabel("If server role data is unavailable, target role may be Unknown.")
-aimSection:AddButton("Unlock Current Target", deactivateAim)
-
-aimConnect(LocalPlayer.CharacterAdded, deactivateAim)
-aimConnect(Players.PlayerRemoving, function(p)
-    if p == aim.lockedPlayer then resetAimTarget() end
-end)
-local RENDER_KEY = "MM2LumenAimLockRender"
-RunService:BindToRenderStep(RENDER_KEY, Enum.RenderPriority.Camera.Value + 2, function()
-    if not session.running or window._dead then return end
-    if session.Extras and session.Extras.freecam then
-        if aim.active then deactivateAim() end
-        return
-    end
-    local role = detectLocalCombatRole()
-    if os.clock() - aim.lastUiAt >= 0.20 then
-        aim.lastUiAt = os.clock()
-        aimRoleStatus.Text = "Your combat role: " .. tostring(role or "Unknown")
-        aimStatus.Text = not aim.enabled and "Aim: OFF" or
-            (aim.active and "Aim: LOCKING TARGET" or "Aim: ready | press chosen key")
-    end
-    if not aim.enabled or not aim.active or not role then
-        if aim.lockedPlayer then resetAimTarget() end
-        return
-    end
-    local camera = Workspace.CurrentCamera
-    if not camera then return end
-    if not targetRoleValid(aim.lockedPlayer, role) then
-        resetAimTarget()
-        aim.lockedPlayer = chooseRoleTarget(role, camera)
-    end
-    local part = getAimPart(aim.lockedPlayer)
-    if not part then
-        if os.clock() - aim.lastUiAt < 0.04 then aimTargetStatus.Text = "Target: no confirmed enemy" end
-        return
-    end
-    showLockedTarget()
-    local point = part.Position
-    local origin = camera.CFrame.Position
-    if (point - origin).Magnitude > 0.1 then
-
-        camera.CFrame = CFrame.lookAt(origin, point)
-    end
-    if os.clock() - aim.lastUiAt < 0.04 then
-        aimTargetStatus.Text = "Target: @" .. aim.lockedPlayer.Name
-        aimAttackStatus.Text = aim.autoAttack and "Attack: automatic" or "Attack: manual"
-    end
-    if not aim.autoAttack or os.clock() < aim.attackAt then return end
-    if not visibleShot(camera, aim.lockedPlayer, point) then return end
-    aim.attackAt = os.clock() + aim.attackCooldown
-    useAimWeapon(role, camera, point)
-end)
-session.AimLock = aim
-
-aim.QuickShootMurder = function()
-    if not UserInputService.TouchEnabled then
-        window:Notify("Mobile only", "This button is for touch devices", 3)
-        return
-    end
-    if detectLocalCombatRole() ~= "Sheriff" then
-        window:Notify("Quick Shoot", "Requires Sheriff/Hero and a gun", 3)
-        return
-    end
-    local camera = Workspace.CurrentCamera
-    if not camera then return end
-    local target = chooseRoleTarget("Sheriff", camera)
-    local part = getAimPart(target)
-    if not part then return end
-    camera.CFrame = CFrame.lookAt(camera.CFrame.Position, part.Position)
-    local gun = findWeapon("Sheriff", true)
-    if not gun then task.wait(0.15); gun = findWeapon("Sheriff", false) end
-    if gun then pcall(function() gun:Activate() end) end
 end
 
 local antiTab = window:AddTab("Anti AFK", {
@@ -1722,9 +1629,6 @@ local HttpService = game:GetService("HttpService")
 local Lighting = game:GetService("Lighting")
 local extras = {
     running = true,
-    invisible = false,
-    invisibleUser = false,
-    feRequested = false,
     walkEnabled = false,
     jumpEnabled = false,
     walkValue = 24,
@@ -1749,7 +1653,6 @@ local extras = {
     graphicsVersion = 0,
     visualMeta = {},
     originalQuality = nil,
-    avatarOriginals = setmetatable({}, {__mode = "k"}),
     originalWalk = nil,
     originalJump = nil,
     originalUseJumpPower = nil,
@@ -1871,84 +1774,6 @@ trackExtra(game.DescendantAdded, function(obj)
     end
 end)
 
-local invisibleTab = window:AddTab("Invisibility", {
-    icon = "star",
-    description = "Local stealth & defensive settings",
-})
-local stealthSection = invisibleTab:AddSection("Invisibility")
-local invisibleInfo = stealthSection:AddLabel("Visibility: normal")
-local function invisibleCharacter()
-    local character = LocalPlayer.Character
-    if not character then return end
-    for _, obj in ipairs(character:GetDescendants()) do
-        if obj:IsA("BasePart") then
-            local saved = extras.avatarOriginals[obj]
-            if saved == nil then extras.avatarOriginals[obj] = obj.LocalTransparencyModifier end
-            obj.LocalTransparencyModifier = 1
-        elseif obj:IsA("Decal") then
-            if extras.avatarOriginals[obj] == nil then
-                extras.avatarOriginals[obj] = obj.Transparency
-            end
-            obj.Transparency = 1
-        end
-    end
-end
-local function restoreAvatar()
-    for obj, value in pairs(extras.avatarOriginals) do
-        if obj and obj.Parent then
-            pcall(function()
-                if obj:IsA("BasePart") then obj.LocalTransparencyModifier = value
-                elseif obj:IsA("Decal") then obj.Transparency = value end
-            end)
-        end
-        extras.avatarOriginals[obj] = nil
-    end
-end
-local function applyStealth()
-    if extras.invisible then invisibleCharacter() else restoreAvatar() end
-    invisibleInfo.Text = extras.invisible
-        and "Invisible locally | Other players MAY still see you"
-        or "Visibility: normal"
-end
-stealthSection:AddSwitch("Invisible Character (Local)", function(v)
-    extras.invisibleUser = v
-    extras.invisible = extras.invisibleUser or extras.feRequested
-    applyStealth()
-end, {default = false, description = "Only changes local rendering; no server-side guarantee"})
-stealthSection:AddSwitch("FE Invisibility (Premium / Experimental)", function(v)
-    extras.feRequested = v
-    if v then
-
-        notice("FE Invisibility", "Only local invisibility is available; FE needs server support")
-    end
-    extras.invisible = extras.invisibleUser or extras.feRequested
-    applyStealth()
-end, {default = false, description = "No claim of FE replication; local fallback only"})
-stealthSection:AddLabel("FE invisibility requires a compatible server ability; this script cannot force it.")
-trackExtra(LocalPlayer.CharacterAdded, function()
-    extras.avatarOriginals = setmetatable({}, {__mode = "k"})
-    extras.originalWalk, extras.originalJump, extras.originalUseJumpPower = nil, nil, nil
-    task.delay(0.6, function()
-        if not session.running then return end
-        if extras.invisible then invisibleCharacter() end
-    end)
-end)
-trackExtra(RunService.Heartbeat, function()
-    if not session.running then return end
-    local root, hum = rootAndHumanoid()
-    if not hum then return end
-    if extras.walkEnabled then
-        if extras.originalWalk == nil then extras.originalWalk = hum.WalkSpeed end
-        hum.WalkSpeed = extras.walkValue
-    end
-    if extras.jumpEnabled then
-        if extras.originalUseJumpPower == nil then extras.originalUseJumpPower = hum.UseJumpPower end
-        if extras.originalJump == nil then extras.originalJump = hum.JumpPower end
-        hum.UseJumpPower = true
-        hum.JumpPower = extras.jumpValue
-    end
-end)
-
 local combatTab = window:AddTab("Combat & Fling", {
     icon = "bolt",
     description = "Murderer combat, optional physics & player selection",
@@ -2017,9 +1842,6 @@ killSection:AddSwitch("Auto Kill All", function(v)
     extras.autoKill = v
     combatStatus.Text = v and "Combat: auto kill ON" or "Combat: auto kill OFF"
 end, {default = false, description = "Murderer only; attempts ordinary knife hits"})
-killSection:AddButton("Faster Kill Murder (Mobile Only)", function()
-    aim.QuickShootMurder()
-end)
 killSection:AddLabel("Teleport/Bring and melee hits can be rejected by the MM2 server.")
 
 task.spawn(function()
@@ -2262,7 +2084,6 @@ end
 local function startFreeCam()
     local camera = Workspace.CurrentCamera
     if not camera then return end
-    deactivateAim()
     extras.oldCameraType = camera.CameraType
     extras.oldCameraSubject = camera.CameraSubject
     extras.freecamCFrame = camera.CFrame
@@ -2442,6 +2263,30 @@ local themeColors = {
         inactive = Color3.fromRGB(43, 68, 99),
         green = Color3.fromRGB(100, 226, 183),
     },
+    ["Halloween"] = {
+        accent = Color3.fromRGB(255, 128, 38),
+        pale = Color3.fromRGB(57, 35, 74),
+        header = Color3.fromRGB(47, 12, 74),
+        background = Color3.fromRGB(23, 12, 34),
+        surface = Color3.fromRGB(39, 22, 52),
+        border = Color3.fromRGB(112, 58, 130),
+        text = Color3.fromRGB(255, 244, 226),
+        muted = Color3.fromRGB(202, 168, 216),
+        inactive = Color3.fromRGB(77, 54, 92),
+        green = Color3.fromRGB(160, 235, 126),
+    },
+    ["Hello Kitty"] = {
+        accent = Color3.fromRGB(235, 89, 154),
+        pale = Color3.fromRGB(255, 223, 238),
+        header = Color3.fromRGB(248, 161, 200),
+        background = Color3.fromRGB(255, 246, 250),
+        surface = Color3.fromRGB(255, 255, 255),
+        border = Color3.fromRGB(250, 194, 220),
+        text = Color3.fromRGB(107, 64, 86),
+        muted = Color3.fromRGB(177, 124, 150),
+        inactive = Color3.fromRGB(248, 214, 230),
+        green = Color3.fromRGB(122, 192, 139),
+    },
     ["Preto Puro"] = {
         accent = Color3.fromRGB(255, 255, 255),
         pale = Color3.fromRGB(25, 25, 25),
@@ -2463,6 +2308,312 @@ local function themeAncestor(instance, name)
         parent = parent.Parent
     end
     return false
+end
+
+local function specialObject(parent, className, name, position, size, color, z)
+    local object = Instance.new(className)
+    object.Name = name
+    object.Position = position
+    object.Size = size
+    object.BackgroundColor3 = color
+    object.BackgroundTransparency = className == "TextLabel" and 1 or 0
+    object.BorderSizePixel = 0
+    object.ZIndex = z or (parent.ZIndex + 1)
+    object.Parent = parent
+    return object
+end
+
+local function specialRound(frame, radius)
+    local c = Instance.new("UICorner")
+    c.CornerRadius = UDim.new(0, radius)
+    c.Parent = frame
+    return frame
+end
+
+local function specialText(parent, name, text, x, y, width, height, color, size, z)
+    local lbl = specialObject(parent, "TextLabel", name,
+        UDim2.fromOffset(x, y), UDim2.fromOffset(width, height), Color3.new(1, 1, 1), z)
+    lbl.Text = text
+    lbl.TextColor3 = color
+    lbl.TextSize = size
+    lbl.TextXAlignment = Enum.TextXAlignment.Center
+    lbl.Font = Enum.Font.GothamBold
+    return lbl
+end
+
+local function specialDisc(parent, name, x, y, width, height, color, z)
+    return specialRound(specialObject(parent, "Frame", name,
+        UDim2.fromOffset(x, y), UDim2.fromOffset(width, height), color, z), math.max(width, height))
+end
+
+local function specialStroke(parent, color, transparency, thickness)
+    local stroke = Instance.new("UIStroke")
+    stroke.Color = color
+    stroke.Transparency = transparency or 0
+    stroke.Thickness = thickness or 1
+    stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+    stroke.Parent = parent
+    return stroke
+end
+
+local function specialLine(parent, name, x, y, length, angle, color, thickness, z)
+    local segment = specialObject(parent, "Frame", name, UDim2.fromOffset(x, y),
+        UDim2.fromOffset(length, thickness or 2), color, z)
+    segment.Rotation = angle
+    specialRound(segment, 2)
+    return segment
+end
+
+local function specialGradient(parent, first, second, rotation)
+    local gradient = Instance.new("UIGradient")
+    gradient.Name = "SeasonalGradient"
+    gradient.Color = ColorSequence.new(first, second)
+    gradient.Rotation = rotation or 0
+    gradient.Parent = parent
+    return gradient
+end
+
+local function specialFlower(parent, x, y, scale, baseZ)
+    local group = specialObject(parent, "Frame", "PinkFlower", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(30 * scale, 30 * scale), Color3.new(1, 1, 1), baseZ)
+    group.BackgroundTransparency = 1
+    for index = 0, 4 do
+        local angle = 2 * math.pi * index / 5
+        specialDisc(group, "Petal", (15 + math.sin(angle) * 8) * scale - 5 * scale,
+            (15 - math.cos(angle) * 8) * scale - 5 * scale,
+            12 * scale, 12 * scale, Color3.fromRGB(255, 155, 201), baseZ + 1)
+    end
+    specialDisc(group, "FlowerCenter", 11 * scale, 11 * scale, 9 * scale, 9 * scale,
+        Color3.fromRGB(255, 226, 104), baseZ + 2)
+    return group
+end
+
+local function specialBow(parent, x, y, scale, z)
+    local c = Color3.fromRGB(235, 74, 139)
+    local group = specialObject(parent, "Frame", "KittyBow", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(34 * scale, 26 * scale), Color3.new(1, 1, 1), z)
+    group.BackgroundTransparency = 1
+    local left = specialRound(specialObject(group, "Frame", "LeftBow", UDim2.fromOffset(0, 4 * scale),
+        UDim2.fromOffset(17 * scale, 18 * scale), c, z + 1), 9 * scale)
+    left.Rotation = -26
+    local right = specialRound(specialObject(group, "Frame", "RightBow", UDim2.fromOffset(16 * scale, 4 * scale),
+        UDim2.fromOffset(17 * scale, 18 * scale), c, z + 1), 9 * scale)
+    right.Rotation = 26
+    specialDisc(group, "BowKnot", 11 * scale, 7 * scale, 12 * scale, 12 * scale,
+        Color3.fromRGB(255, 117, 168), z + 2)
+    return group
+end
+
+local function specialKitty(parent, x, y, scale, z)
+    local root = specialObject(parent, "Frame", "KittyIllustration", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(104 * scale, 100 * scale), Color3.new(1, 1, 1), z)
+    root.BackgroundTransparency = 1
+    local white = Color3.fromRGB(255, 255, 255)
+    local outline = Color3.fromRGB(124, 79, 99)
+    local ear1 = specialRound(specialObject(root, "Frame", "KittyEar", UDim2.fromOffset(13 * scale, 4 * scale),
+        UDim2.fromOffset(32 * scale, 38 * scale), white, z + 1), 8 * scale)
+    ear1.Rotation = -19
+    specialStroke(ear1, outline, 0.1, 1.2)
+    local ear2 = specialRound(specialObject(root, "Frame", "KittyEar", UDim2.fromOffset(60 * scale, 4 * scale),
+        UDim2.fromOffset(32 * scale, 38 * scale), white, z + 1), 8 * scale)
+    ear2.Rotation = 19
+    specialStroke(ear2, outline, 0.1, 1.2)
+    local face = specialRound(specialObject(root, "Frame", "KittyFace", UDim2.fromOffset(7 * scale, 23 * scale),
+        UDim2.fromOffset(91 * scale, 66 * scale), white, z + 2), 30 * scale)
+    specialStroke(face, outline, 0.05, 1.3)
+    specialDisc(root, "Eye", 34 * scale, 58 * scale, 6 * scale, 9 * scale, Color3.fromRGB(48, 45, 51), z + 3)
+    specialDisc(root, "Eye", 69 * scale, 58 * scale, 6 * scale, 9 * scale, Color3.fromRGB(48, 45, 51), z + 3)
+    specialRound(specialObject(root, "Frame", "Nose", UDim2.fromOffset(49 * scale, 72 * scale),
+        UDim2.fromOffset(9 * scale, 6 * scale), Color3.fromRGB(255, 217, 89), z + 3), 4 * scale)
+    for _, side in ipairs({-1, 1}) do
+        for index = -1, 1 do
+            local px = side == -1 and 8 or 80
+            specialLine(root, "Whisker", (px + (side == -1 and 0 or 0)) * scale,
+                (67 + index * 7) * scale, 19 * scale,
+                side * (index * 12), outline, 1.3 * scale, z + 3)
+        end
+    end
+    specialBow(root, 61 * scale, 8 * scale, 0.95 * scale, z + 4)
+    return root
+end
+
+local function specialPumpkin(parent, x, y, scale, z)
+    local group = specialObject(parent, "Frame", "Pumpkin", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(83 * scale, 68 * scale), Color3.new(1, 1, 1), z)
+    group.BackgroundTransparency = 1
+    local orange = Color3.fromRGB(255, 134, 34)
+    specialRound(specialObject(group, "Frame", "Stem", UDim2.fromOffset(37 * scale, 1 * scale),
+        UDim2.fromOffset(12 * scale, 18 * scale), Color3.fromRGB(100, 169, 54), z + 1), 5 * scale)
+    specialDisc(group, "PumpkinSide", 1 * scale, 17 * scale, 46 * scale, 48 * scale,
+        Color3.fromRGB(220, 95, 28), z + 2)
+    specialDisc(group, "PumpkinSide", 36 * scale, 17 * scale, 46 * scale, 48 * scale,
+        Color3.fromRGB(225, 96, 25), z + 2)
+    specialDisc(group, "PumpkinBody", 19 * scale, 11 * scale, 45 * scale, 56 * scale, orange, z + 3)
+    local dark = Color3.fromRGB(65, 25, 71)
+    specialDisc(group, "Eye", 30 * scale, 32 * scale, 8 * scale, 9 * scale, dark, z + 4)
+    specialDisc(group, "Eye", 49 * scale, 32 * scale, 8 * scale, 9 * scale, dark, z + 4)
+    specialRound(specialObject(group, "Frame", "Smile", UDim2.fromOffset(35 * scale, 49 * scale),
+        UDim2.fromOffset(17 * scale, 5 * scale), dark, z + 4), 4 * scale)
+    return group
+end
+
+local function specialGhost(parent, x, y, scale, z)
+    local group = specialObject(parent, "Frame", "Ghost", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(52 * scale, 58 * scale), Color3.new(1, 1, 1), z)
+    group.BackgroundTransparency = 1
+    specialRound(specialObject(group, "Frame", "GhostBody", UDim2.fromOffset(6 * scale, 6 * scale),
+        UDim2.fromOffset(42 * scale, 48 * scale), Color3.fromRGB(255, 255, 255), z + 1), 22 * scale)
+    specialDisc(group, "Eye", 18 * scale, 24 * scale, 5 * scale, 8 * scale,
+        Color3.fromRGB(53, 24, 73), z + 2)
+    specialDisc(group, "Eye", 32 * scale, 24 * scale, 5 * scale, 8 * scale,
+        Color3.fromRGB(53, 24, 73), z + 2)
+    specialDisc(group, "Mouth", 25 * scale, 38 * scale, 6 * scale, 9 * scale,
+        Color3.fromRGB(53, 24, 73), z + 2)
+    return group
+end
+
+local function specialBat(parent, x, y, scale, z)
+    local group = specialObject(parent, "Frame", "Bat", UDim2.fromOffset(x, y),
+        UDim2.fromOffset(44 * scale, 24 * scale), Color3.new(1, 1, 1), z)
+    group.BackgroundTransparency = 1
+    local color = Color3.fromRGB(30, 11, 46)
+    local wing1 = specialDisc(group, "BatWing", 1 * scale, 6 * scale, 25 * scale, 14 * scale, color, z + 1)
+    wing1.Rotation = -24
+    local wing2 = specialDisc(group, "BatWing", 20 * scale, 6 * scale, 25 * scale, 14 * scale, color, z + 1)
+    wing2.Rotation = 24
+    specialDisc(group, "BatBody", 18 * scale, 8 * scale, 10 * scale, 13 * scale, color, z + 2)
+    return group
+end
+
+local function clearSeasonal(root)
+    for _, obj in ipairs(root:GetDescendants()) do
+        if obj.Name == "SeasonalGradient" then obj:Destroy() end
+    end
+    local old = root:FindFirstChild("SeasonalDecor")
+    if old then old:Destroy() end
+    for _, node in ipairs(root:GetDescendants()) do
+        if node.Name == "SeasonalTop" or node.Name == "SeasonalSidebar"
+            or node.Name == "SeasonalHero" or node.Name == "SeasonalIllustration" then
+            node:Destroy()
+        end
+    end
+end
+
+local function applySeasonalTheme(name, palette)
+    local root = window.Instance
+    if not root then return end
+    clearSeasonal(root)
+    local themed = name == "Halloween" or name == "Hello Kitty"
+    local top = root:FindFirstChild("TopBar")
+    local body = root:FindFirstChild("Body")
+    local sidebar = body and body:FindFirstChild("Sidebar")
+    local workspace = body and body:FindFirstChild("Workspace")
+    local hero = workspace and workspace:FindFirstChild("Intro")
+    local art = hero and hero:FindFirstChild("Illustration")
+    local nativeIcon = art and art:FindFirstChild("Icon_grid")
+    local caption = sidebar and sidebar:FindFirstChildWhichIsA("TextLabel")
+    if caption then caption.Text = name == "Halloween" and "SPOOKY MENU"
+        or name == "Hello Kitty" and "HELLO KITTY" or "WORKSPACE" end
+    if hero then
+        local kick = hero:FindFirstChild("TextLabel")
+        for _, label in ipairs(hero:GetChildren()) do
+            if label:IsA("TextLabel") then
+                if label.TextSize == 9 then label.Text = name == "Halloween" and "TRICK OR TREAT"
+                    or name == "Hello Kitty" and "A LITTLE BIT OF CUTE" or "A LITTLE MORE CLARITY" end
+                if label.TextSize == 20 then label.Text = name == "Halloween" and "Spooky night"
+                    or name == "Hello Kitty" and "Pink paradise" or "Your workspace" end
+                if label.TextSize == 11 then label.Text = name == "Halloween" and "Boo! Your controls are ready."
+                    or name == "Hello Kitty" and "Sweet controls, happy vibes." or "Simple controls. A smoother flow." end
+            end
+        end
+    end
+    if art then
+        art.BackgroundTransparency = themed and 1 or 0
+        if nativeIcon then nativeIcon.Visible = not themed end
+    end
+    if not themed then
+        window:SetTitle("MM2 | Lumen Seasonal V8")
+        return
+    end
+    if name == "Halloween" then
+        window:SetTitle("MM2  |  HALLOWEEN NIGHT")
+        if top then specialGradient(top, Color3.fromRGB(28, 5, 47), Color3.fromRGB(93, 31, 112), 0) end
+        if sidebar then specialGradient(sidebar, Color3.fromRGB(34, 14, 51), Color3.fromRGB(48, 22, 63), 90) end
+        if hero then specialGradient(hero, Color3.fromRGB(74, 40, 86), Color3.fromRGB(39, 23, 61), 12) end
+    else
+        window:SetTitle("MM2  |  HELLO KITTY CLUB")
+        if top then specialGradient(top, Color3.fromRGB(245, 145, 187), Color3.fromRGB(255, 192, 215), 0) end
+        if sidebar then specialGradient(sidebar, Color3.fromRGB(255, 229, 242), Color3.fromRGB(255, 246, 251), 90) end
+        if hero then specialGradient(hero, Color3.fromRGB(255, 211, 231), Color3.fromRGB(255, 242, 248), 0) end
+    end
+    if top then
+        local base = top.ZIndex + 4
+        local layer = specialObject(top, "Frame", "SeasonalTop", UDim2.new(), UDim2.new(1, 0, 1, 0),
+            palette.header, base)
+        layer.BackgroundTransparency = 1
+        if name == "Hello Kitty" then
+            specialKitty(layer, 14, 5, 0.38, base)
+            specialFlower(layer, 510, 8, 0.75, base)
+            specialText(layer, "TopHeart", "♥", 0, 17, 715, 19, Color3.fromRGB(255, 243, 249), 16, base)
+        else
+            specialPumpkin(layer, 10, 6, 0.44, base)
+            specialBat(layer, 505, 10, 0.75, base)
+            specialText(layer, "TopStar", "✦", 530, 2, 40, 24,
+                Color3.fromRGB(255, 186, 71), 19, base)
+        end
+    end
+    if sidebar then
+        local z = sidebar.ZIndex + 2
+        local layer = specialObject(sidebar, "Frame", "SeasonalSidebar",
+            UDim2.fromOffset(3, 4), UDim2.new(1, -6, 1, -8), palette.surface, z)
+        layer.BackgroundTransparency = 1
+        if name == "Hello Kitty" then
+            specialFlower(layer, 102, 18, 0.63, z)
+            specialText(layer, "TinyHeart", "♡", 85, 87, 30, 22,
+                Color3.fromRGB(234, 126, 165), 20, z)
+            specialBow(layer, 9, 91, 0.56, z)
+            specialFlower(layer, 105, 340, 0.62, z)
+        else
+            specialBat(layer, 99, 10, 0.6, z)
+            specialText(layer, "TinyStars", "✦", 86, 85, 30, 22,
+                Color3.fromRGB(255, 151, 44), 17, z)
+            specialDisc(layer, "Moon", 115, 336, 21, 21,
+                Color3.fromRGB(255, 215, 139), z)
+            specialBat(layer, 12, 93, 0.46, z)
+        end
+    end
+    if hero and art then
+        local z = hero.ZIndex + 5
+        local layer = specialObject(hero, "Frame", "SeasonalHero",
+            UDim2.new(0, 0, 0, 0), UDim2.new(1, 0, 1, 0), palette.pale, z)
+        layer.BackgroundTransparency = 1
+        if name == "Hello Kitty" then
+            specialKitty(layer, 342, 2, 0.89, z)
+            specialFlower(layer, 295, 62, 0.82, z)
+            specialText(layer, "Heart", "♥", 264, 8, 28, 26,
+                Color3.fromRGB(245, 127, 179), 17, z)
+            specialText(layer, "Heart", "♡", 311, 21, 25, 29,
+                Color3.fromRGB(246, 151, 196), 21, z)
+        else
+            specialPumpkin(layer, 348, 16, 1.00, z)
+            specialGhost(layer, 294, 43, 0.63, z)
+            specialDisc(layer, "FullMoon", 285, 8, 27, 27,
+                Color3.fromRGB(255, 222, 151), z)
+            specialBat(layer, 323, 6, 0.55, z)
+            specialText(layer, "Star", "✦", 266, 36, 24, 24,
+                Color3.fromRGB(255, 146, 40), 18, z)
+        end
+    end
+    for _, item in ipairs(root:GetDescendants()) do
+        if item:IsA("GuiObject") and (item.Name == "Folder" or item.Name == "Switch"
+            or item.Name == "Dropdown" or item.Name == "Slider" or item.Name == "Keybind") then
+            if name == "Hello Kitty" then
+                specialGradient(item, Color3.fromRGB(255, 255, 255), Color3.fromRGB(255, 242, 249), 0)
+            else
+                specialGradient(item, Color3.fromRGB(53, 30, 66), Color3.fromRGB(37, 22, 51), 0)
+            end
+        end
+    end
 end
 
 local function applyInterfaceTheme(name)
@@ -2551,6 +2702,13 @@ local function applyInterfaceTheme(name)
     if window._bubble and window._bubble.Parent then
         window._bubble.BackgroundColor3 = palette.accent
     end
+    window._options.show_intro = name == "Halloween" or name == "Hello Kitty"
+    if window._options.show_intro then
+        if window._size.Y < 580 then window:SetSize(Vector2.new(window._size.X, 590)) end
+    else
+        if window._size.Y == 590 then window:SetSize(Vector2.new(window._size.X, 545)) end
+    end
+    applySeasonalTheme(name, palette)
 end
 
 local customizeTab = window:AddTab("Customization", {
@@ -2558,12 +2716,13 @@ local customizeTab = window:AddTab("Customization", {
     description = "Choose the appearance of the entire UI",
 })
 local themeSection = customizeTab:AddSection("UI Themes")
+themeSection:AddLabel("Seasonal themes: Halloween and Hello Kitty | Full UI makeover")
 local currentTheme = themeSection:AddLabel("Current theme: Roxo")
 local themeDropdown = themeSection:AddDropdown("Select UI Theme", function(value)
     applyInterfaceTheme(value)
     currentTheme.Text = "Current theme: " .. value
-end, {max_visible = 7})
-for _, themeName in ipairs({"Roxo", "Preto", "Amarelo", "Claro", "Escuro", "Noite Dark", "Preto Puro"}) do
+end, {max_visible = 9})
+for _, themeName in ipairs({"Roxo", "Preto", "Amarelo", "Claro", "Escuro", "Noite Dark", "Preto Puro", "Halloween", "Hello Kitty"}) do
     themeDropdown:Add(themeName)
 end
 local initialTheme = themeColors[environment.MM2LumenThemeChoice] and environment.MM2LumenThemeChoice or "Roxo"
@@ -2575,10 +2734,10 @@ themeSection:AddButton("Reset to Purple", function()
 end)
 
 local function stopV3Extras()
+    if window and window.Instance then clearSeasonal(window.Instance) end
     extras.running = false
     extras.graphicsVersion = extras.graphicsVersion + 1
     extras.autoKill, extras.flingAll, extras.flingTouch = false, false, false
-    extras.invisible, extras.feRequested = false, false
     extras.walkEnabled, extras.jumpEnabled, extras.noclip = false, false, false
     extras.espHitbox = false
     roleSettings.allPlayers, roleSettings.allNames = false, false
@@ -2588,7 +2747,6 @@ local function stopV3Extras()
     farm.protection = false
     stopFreeCam()
     for p in pairs(extras.visualObjects) do clearESPEntry(p) end
-    restoreAvatar()
     restoreGraphics()
     if extras.originalQuality ~= nil then
         pcall(function() settings().Rendering.QualityLevel = extras.originalQuality end)
@@ -2615,15 +2773,9 @@ stopExtras = function()
         connection:Disconnect()
     end
     antiAFK.connections = {}
-    deactivateAim()
-    aim.enabled = false
-    RunService:UnbindFromRenderStep(RENDER_KEY)
-    for _, connection in ipairs(aim.connections) do connection:Disconnect() end
-    aim.connections = {}
     previousStopExtras()
 end
 
-session.AimLock = aim
 
 task.spawn(function()
     while session.running and window.Instance and window.Instance.Parent do
@@ -2634,4 +2786,4 @@ task.spawn(function()
     session.Stop()
 end)
 
-window:Notify("MM2 Lumen V4", "Premium Farm in Farming | ESP in Roles | Anti AFK ON", 5)
+window:Notify("MM2 Lumen V8", "Premium Farm in Farming | ESP in Roles | Anti AFK ON", 5)
